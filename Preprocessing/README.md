@@ -1,6 +1,6 @@
 # BioGRID Dataset Processing
 
-After downloading and unzipping a BioGRID release, run the following:
+After downloading and unzipping a [BioGRID release](https://downloads.thebiogrid.org/BioGRID/Release-Archive/) file, run the following:
 
 1. get_biogrid_interactions.py <path_to_.tab2_or_.tab3_files>
     
