@@ -8,5 +8,5 @@ Yao, Y., Du, X., Diao, Y., & Zhu, H. (2019). An integration of deep learning wit
 3. **[DPPI](https://github.com/hashemifar/DPPI)**  
 Hashemifar S, Neyshabur B, Khan AA, Xu J. Predicting protein-protein interactions through sequence-based deep learning. Bioinformatics. 2018 Sep 1;34(17):i802-i810. doi: 10.1093/bioinformatics/bty573. PMID: 30423091; PMCID: PMC6129267.  
 
-4. **[SPRINT](https://github.com/lucian-ilie/SPRINT)** 
+4. **[SPRINT](https://github.com/lucian-ilie/SPRINT)**  
 Li, Y., Ilie, L. SPRINT: ultrafast protein-protein interaction prediction of the entire human interactome. BMC Bioinformatics 18, 485 (2017). https://doi.org/10.1186/s12859-017-1871-x  
