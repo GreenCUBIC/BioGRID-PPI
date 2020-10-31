@@ -3,11 +3,12 @@
 After downloading and unzipping a BioGRID release, run the following:
 
   1. get_biogrid_interactions.py <path_to_files>
-    This generates three directories with files with filtered positive protein interactions related to organismIDs and files containing their sequences:
-      Intraspecies_Interactions/ 
-      Interspecies_Interactions/ 
-      Proteomes/
-    Note that reference proteomes will need to be downloaded separately.
+    
+   This generates three directories with files with filtered positive protein interactions related to organismIDs and files containing their sequences:
+    Intraspecies_Interactions/ 
+    Interspecies_Interactions/ 
+    Proteomes/
+    *Note that reference proteomes will need to be downloaded separately.
     Sequence data formatted as .fasta files, example:
       >ProteinID_1
       SEQUENCE1
