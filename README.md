@@ -10,13 +10,13 @@ After downloading and unzipping a BioGRID release, run the following:
    * Proteomes/
    
    *Note that reference proteomes will need to be downloaded separately.*
-   ####Output format
+   ###### Output format
    Sequence data as .fasta files, example:
-    >ProteinID_1
-    SEQUENCE1
-    >ProteinID_2
-    SEQUENCE2
-    ...
+    '>ProteinID_1'
+    'SEQUENCE1'
+    '>ProteinID_2'
+    'SEQUENCE2'
+    '...'
    Interaction data as .tsv files, example:
     ProteinA  ProteinB
     ProteinC  ProteinD
