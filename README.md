@@ -35,6 +35,7 @@ After downloading and unzipping a BioGRID release, run the following:
 4. format_interactions.py -pseq <file_positive_sequences.fasta> -p <file_positive_interactions.tsv> -nseq <file_negative_sequences.fasta> -n <file_negative_interactions.tsv> -m <model_name_from_options>  
 
    This will generate new directories for the chosen models/formats and format the provided data to the corresponding directory.  
-   Currently only supports formatting for "PIPR", "DeepFE-PPI", "DPPI", and "SPRINT" protein prediction models.  
-   Note: DPPI will still require a PSI-BLAST search for PSSMs using the protein files created.  
-    
+   *Currently only supports formatting for "PIPR", "DeepFE-PPI", "DPPI", and "SPRINT" protein prediction models.*  
+   *Note: DPPI will still require a PSI-BLAST search for PSSMs using the protein files created.*  
+   [Link]
+   (www.google.ca)
