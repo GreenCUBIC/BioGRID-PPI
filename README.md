@@ -37,5 +37,11 @@ After downloading and unzipping a BioGRID release, run the following:
    This will generate new directories for the chosen models/formats and format the provided data to the corresponding directory.  
    *Currently only supports formatting for "PIPR", "DeepFE-PPI", "DPPI", and "SPRINT" protein prediction models.*  
    *Note: DPPI will still require a PSI-BLAST search for PSSMs using the protein files created.*  
-   [Link]
-   (www.google.ca)
+   [PIPR]
+   (https://github.com/muhaochen/seq_ppi)
+   [DeepFE-PPI]
+   (https://github.com/xal2019/DeepFE-PPI)
+   [DPPI]
+   (https://github.com/hashemifar/DPPI)
+   [SPRINT]
+   (https://github.com/lucian-ilie/SPRINT)
