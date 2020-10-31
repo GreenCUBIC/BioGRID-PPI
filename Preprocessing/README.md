@@ -42,3 +42,7 @@ After downloading and unzipping a [BioGRID release](https://downloads.thebiogrid
    [DPPI](https://github.com/hashemifar/DPPI)  
    [SPRINT](https://github.com/lucian-ilie/SPRINT)  
 
+
+#### Positive interactions are filtered based on conservative approach prescribed by [POSITOME](http://bioinf.sce.carleton.ca/POSITOME/)  
+K. Dick, F. Dehne, A. Golshani and J. R. Green, "Positome: A method for improving protein-protein interaction quality and prediction accuracy," 2017 IEEE Conference on Computational Intelligence in Bioinformatics and Computational Biology (CIBCB), Manchester, 2017, pp. 1-8, doi: 10.1109/CIBCB.2017.8058545.  
+
