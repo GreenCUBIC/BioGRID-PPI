@@ -13,7 +13,7 @@ After downloading and unzipping a BioGRID release, run the following:
    #### Output file format
    
    Sequence data as .fasta files, example:
-   >ProteinID_1
+   >>ProteinID_1
    SEQUENCE1
    >ProteinID_2
    SEQUENCE2
@@ -32,7 +32,7 @@ After downloading and unzipping a BioGRID release, run the following:
 
    This may be run on any dataset, after homology reductions, or not at all. It ensures that all proteins found in interactions have corresponding sequences and will remove interactions if there is no sequence for either or both proteins. It also makes sure the positive and negative interaction data is balanced.
     
-4. '<format_interactions.py -pseq <file_positive_sequences.fasta> -p <file_positive_interactions.tsv> -nseq <file_negative_sequences.fasta> -n <file_negative_interactions.tsv> -m <model_name_from_options>>'
+4. format_interactions.py -pseq <file_positive_sequences.fasta> -p <file_positive_interactions.tsv> -nseq <file_negative_sequences.fasta> -n <file_negative_interactions.tsv> -m <model_name_from_options>
 
    This will generate new directories for the chosen models/formats and format the provided data to the corresponding directory.
    Currently only supports formatting for "PIPR", "DeepFE-PPI", "DPPI", and "SPRINT" protein prediction models.
