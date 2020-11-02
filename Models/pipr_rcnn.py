@@ -232,7 +232,7 @@ def get_traintest_split(class_labels, train_length):
     return [(np.asarray(train), np.asarray(test))]
 
 def get_crossvalidation_splits(class_labels, nsplits=5):
-    kf = KFold(n_splits=nsplits, shuffle=True)
+    kf = KFold(n_splits=nsplits, shuffle=True, random_state=10312020)
     tries = 5
     cur = 0
     train_test = []
