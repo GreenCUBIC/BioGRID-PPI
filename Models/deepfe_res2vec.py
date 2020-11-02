@@ -313,7 +313,7 @@ def get_crossvalidation_splits(training, class_labels, nsplits=5):
     #train_test = skf.split(training, class_labels)
     
     # KFold is used since datasets are assumed to be balanced positive/negative
-    kf = KFold(n_splits=nsplits, shuffle=True, random_state=20181031)
+    kf = KFold(n_splits=nsplits, shuffle=True, random_state=10312020)
     tries = 5
     cur = 0
     train_test = []
