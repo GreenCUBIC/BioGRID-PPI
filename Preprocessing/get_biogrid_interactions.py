@@ -33,6 +33,9 @@ PROTEOMEPATH = 'Proteomes/'
 INTRAPATH = 'Intraspecies_Interactions/'
 INTERPATH = 'Interspecies_Interactions/'
 
+ORGANISM_ID_A = 'Organism Interactor A'
+ORGANISM_ID_B = 'Organism Interactor B'
+
 # Columns of interest
 TAB2COLS = [
     'Entrez Gene Interactor A', 
@@ -46,6 +49,13 @@ TAB3COLS = [
     'Publication Source', 
     'Organism Interactor A', 
     'Organism Interactor B']
+TAB3COLS_v4 = [
+    'Entrez Gene Interactor A', 
+    'Entrez Gene Interactor B', 
+    'Publication Source', 
+    'Organism ID Interactor A', 
+    'Organism ID Interactor B']
+    
 # Define conservative filters as proposed in POSITOME
 INTERACTION_TYPES=['physical']
 DETECTION_METHODS=[
@@ -74,6 +84,8 @@ THROUGHPUT_LEVELS=[
 #         values as dataframe of interaction data
 def get_biogrid_data(path, files, filters=True):
     biogrid_dfs = {}
+    global ORGANISM_ID_A
+    global ORGANISM_ID_B
     # Iterate over each file
     for file in files:
         print('Reading', file)
@@ -93,7 +105,15 @@ def get_biogrid_data(path, files, filters=True):
                 df = df[TAB2COLS]
                 df = df[df.duplicated(subset=['Pubmed ID'])]
             elif '.tab3' in file:
-                df = df[TAB3COLS]
+                if file.split('-')[-1].split('.')[0] == '3':
+                    df = df[TAB3COLS]
+                    ORGANISM_ID_A = 'Organism Interactor A'
+                    ORGANISM_ID_B = 'Organism Interactor B'
+                elif file.split('-')[-1].split('.')[0] == '4':
+                    df = df[TAB3COLS_v4]
+                    ORGANISM_ID_A = 'Organism ID Interactor A'
+                    ORGANISM_ID_B = 'Organism ID Interactor B'
+                    
                 df = df[df.duplicated(subset=['Publication Source'])]
                 biogrid_dfs[file.replace('BIOGRID-ORGANISM-', '').replace(suffix, '')] = df.reset_index(drop=True)
         else:
@@ -108,11 +128,11 @@ def get_biogrid_data(path, files, filters=True):
 def separate_species_interactions(organismRelease, df_biogrid):
     intra_species = []
     inter_species = []
-    organisms = df_biogrid['Organism Interactor A'].append(df_biogrid['Organism Interactor B']).unique().astype(str)
-    main_organism = df_biogrid['Organism Interactor A'].append(df_biogrid['Organism Interactor B']).mode().astype(str)[0]
+    organisms = df_biogrid[ORGANISM_ID_A].append(df_biogrid[ORGANISM_ID_B]).unique().astype(str)
+    main_organism = df_biogrid[ORGANISM_ID_A].append(df_biogrid[ORGANISM_ID_B]).mode().astype(str)[0]
     for organism in organisms:
         print('Pulling interactions for organism', organism)
-        intra = df_biogrid.loc[(df_biogrid['Organism Interactor A'] == organism) & (df_biogrid['Organism Interactor B'] == organism)]
+        intra = df_biogrid.loc[(df_biogrid[ORGANISM_ID_A] == organism) & (df_biogrid[ORGANISM_ID_B] == organism)]
         # Remove redundant interactions
         intra = intra.drop_duplicates(subset=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'])
         intra.reset_index(drop=True, inplace=True)
@@ -130,8 +150,8 @@ def separate_species_interactions(organismRelease, df_biogrid):
             print('Pulling interactions for organism pair:', pair)
             inter = pd.DataFrame()
             # Isolate interactions for interspecies pair
-            inter = df_biogrid.loc[(df_biogrid['Organism Interactor A'] == pair[0]) & (df_biogrid['Organism Interactor B'] == pair[1])]
-            inter = inter.append(df_biogrid.loc[(df_biogrid['Organism Interactor A'] == pair[1]) & (df_biogrid['Organism Interactor B'] == pair[0])])
+            inter = df_biogrid.loc[(df_biogrid[ORGANISM_ID_A] == pair[0]) & (df_biogrid[ORGANISM_ID_B] == pair[1])]
+            inter = inter.append(df_biogrid.loc[(df_biogrid[ORGANISM_ID_A] == pair[1]) & (df_biogrid[ORGANISM_ID_B] == pair[0])])
             # Remove redundant interactions
             inter = inter.drop_duplicates(subset=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'])
             inter.reset_index(drop=True, inplace=True)
@@ -200,7 +220,7 @@ def get_organism_proteome(organismRelease, reviewed='yes'):
 #       if protein has sequence, creates a sequences.fasta and interactions.tsv
 def map_bgup(organismRelease, df_biogrid):
     # Organism IDs and path for naming files
-    organisms = df_biogrid['Organism Interactor A'].append(df_biogrid['Organism Interactor B']).unique()
+    organisms = df_biogrid[ORGANISM_ID_A].append(df_biogrid[ORGANISM_ID_B]).unique()
     organisms_name = '-'.join(organisms)
     if len(organisms) > 1:
         path = INTERPATH
@@ -339,7 +359,7 @@ if __name__ == "__main__":
             for df in intra_interactions:
                 mapped, fasta = map_bgup(organismRelease, df)
                 if not mapped.empty and not fasta.empty:
-                    organismID = df['Organism Interactor A'].append(df['Organism Interactor B']).unique().astype(str)
+                    organismID = df[ORGANISM_ID_A].append(df[ORGANISM_ID_B]).unique().astype(str)
                     proteome = get_organism_proteome(organismID[0], reviewed='yes')
                     verify_sequences(mapped, fasta, proteome, organismID[0])
         else:
@@ -349,7 +369,7 @@ if __name__ == "__main__":
             for df in inter_interactions:
                 mapped, fasta = map_bgup(organismRelease, df)
                 if not mapped.empty and not fasta.empty:
-                    organismID = df['Organism Interactor A'].append(df['Organism Interactor B']).unique().astype(str)
+                    organismID = df[ORGANISM_ID_A].append(df[ORGANISM_ID_B]).unique().astype(str)
                     proteome_a = get_organism_proteome(organismID[0], reviewed='yes')
                     proteome_b = get_organism_proteome(organismID[1], reviewed='yes')
                     full_sequences = proteome_a.append(proteome_b).drop_duplicates()
