@@ -9,11 +9,11 @@ Description:
     entrez gene IDs to protein IDs and sequences.
 
 @author: Eric Arezza
+Last Updated: Nov 7 2020
 """
 
 __all__ = ['get_biogrid_data', 
            'separate_species_interactions', 
-           'remove_redundant_interactions', 
            'get_organism_proteome', 
            'map_bgup', 
            'verify_sequences'
@@ -24,19 +24,22 @@ __author__ = 'Eric Arezza'
 
 import os, sys
 import pandas as pd
+import numpy as np
 import urllib.parse
 import urllib.request
 from io import StringIO
 from itertools import combinations
 
+# To store files
 PROTEOMEPATH = 'Proteomes/'
 INTRAPATH = 'Intraspecies_Interactions/'
 INTERPATH = 'Interspecies_Interactions/'
 
+# For release version column names
 ORGANISM_ID_A = 'Organism Interactor A'
 ORGANISM_ID_B = 'Organism Interactor B'
+PUBMED = 'Publication Source'
 
-# Columns of interest
 TAB2COLS = [
     'Entrez Gene Interactor A', 
     'Entrez Gene Interactor B', 
@@ -86,6 +89,7 @@ def get_biogrid_data(path, files, filters=True):
     biogrid_dfs = {}
     global ORGANISM_ID_A
     global ORGANISM_ID_B
+    global PUBMED
     # Iterate over each file
     for file in files:
         print('Reading', file)
@@ -95,15 +99,17 @@ def get_biogrid_data(path, files, filters=True):
             suffix = '.tab2.txt'
         elif '.tab3' in file:
             suffix = '.tab3.txt'
+            
         if filters:
             # Apply filters
+            print('Applying filters...')
             df = df[df['Experimental System Type'].str.lower().isin(INTERACTION_TYPES)]
             df = df[df['Experimental System'].str.lower().isin(DETECTION_METHODS)]
             df = df[df['Throughput'].str.lower().isin(THROUGHPUT_LEVELS)]
-            # Filter for interactions with more than 1 publication source
+            # Filter for interactions with more than 1 Publication Source
             if '.tab2' in file:
                 df = df[TAB2COLS]
-                df = df[df.duplicated(subset=['Pubmed ID'])]
+                PUBMED = 'Pubmed ID'
             elif '.tab3' in file:
                 if file.split('-')[-1].split('.')[0] == '3':
                     df = df[TAB3COLS]
@@ -113,13 +119,38 @@ def get_biogrid_data(path, files, filters=True):
                     df = df[TAB3COLS_v4]
                     ORGANISM_ID_A = 'Organism ID Interactor A'
                     ORGANISM_ID_B = 'Organism ID Interactor B'
-                    
-                df = df[df.duplicated(subset=['Publication Source'])]
-                biogrid_dfs[file.replace('BIOGRID-ORGANISM-', '').replace(suffix, '')] = df.reset_index(drop=True)
+                PUBMED = 'Publication Source'
+
+            biogrid_dfs[file.replace('BIOGRID-ORGANISM-', '').replace(suffix, '')] = df.reset_index(drop=True)
         else:
-            biogrid_dfs[file.replace('BIOGRID-ORGANISM-', '').replace(suffix, '')] = df
+            biogrid_dfs[file.replace('BIOGRID-ORGANISM-', '').replace(suffix, '')] = df.reset_index(drop=True)
         print('Finished reading', file)
     return biogrid_dfs
+
+#========================== CHECK MULTIPLE SOURCES ========================
+# Args: BioGRID dataframe
+# Return: BioGRID dataframe with non-redundant, multi-sourced interactions
+#==========================================================================
+def check_multiple_sources(df):
+    print('Checking interactions for multiple sources, this may take a while...')
+    # Keep interactions listed more than once (reduces df)
+    df = df[df.duplicated(subset=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'], keep=False)]
+    df.insert(0, 0, df['Entrez Gene Interactor A'] + ' ' + df['Entrez Gene Interactor B'])
+    interactions = df[0].unique()
+    multi = []
+    # Keep interactions with more than one Publication Source
+    for i in interactions:
+        sys.stdout.write('\rInteraction ' + str(list(interactions).index(i) + 1) + '/' + str(len(interactions)))
+        sys.stdout.flush()
+        if len(df[df[0] == i][PUBMED].unique()) > 1:
+            multi.append(df[df[0] == i][PUBMED].index[0])
+    df = df.loc[multi].reset_index(drop=True)
+    df.drop(columns=[0], inplace=True)
+    # Remove redundant interactions where (A-B == B-A)
+    nr = pd.DataFrame(np.sort(df[['Entrez Gene Interactor A', 'Entrez Gene Interactor B']], axis=1), columns=['Entrez Gene Interactor A', 'Entrez Gene Interactor B']).drop_duplicates()
+    df = df.loc[nr.index].reset_index(drop=True)
+    
+    return df
 
 #====================== SEPARATE SPECIES INTERACTIONS ==========================
 # Args: key (organism name), value (dataframe) generated from get_biogrid_interactions
@@ -129,37 +160,54 @@ def separate_species_interactions(organismRelease, df_biogrid):
     intra_species = []
     inter_species = []
     organisms = df_biogrid[ORGANISM_ID_A].append(df_biogrid[ORGANISM_ID_B]).unique().astype(str)
-    main_organism = df_biogrid[ORGANISM_ID_A].append(df_biogrid[ORGANISM_ID_B]).mode().astype(str)[0]
+    single = False
+    try:
+        main_organism = df_biogrid[ORGANISM_ID_A].append(df_biogrid[ORGANISM_ID_B]).mode().astype(str)[0]
+        single = True
+    except:
+        print('Checking interspecies...')
     for organism in organisms:
         print('Pulling interactions for organism', organism)
         intra = df_biogrid.loc[(df_biogrid[ORGANISM_ID_A] == organism) & (df_biogrid[ORGANISM_ID_B] == organism)]
+        
+        intra = check_multiple_sources(intra)
         # Remove redundant interactions
         intra = intra.drop_duplicates(subset=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'])
         intra.reset_index(drop=True, inplace=True)
         if not intra.empty:
-            intra = remove_redundant_interactions(intra)
+            # Remove redundant interactions
+            nr = pd.DataFrame(np.sort(intra[['Entrez Gene Interactor A', 'Entrez Gene Interactor B']], axis=1), columns=['Entrez Gene Interactor A', 'Entrez Gene Interactor B']).drop_duplicates()
+            intra = intra.loc[nr.index].reset_index(drop=True)
             intra_species.append(intra)
-    # Get combinations of interspecies pairs with main organism
+            
+    # Get combinations of interspecies pairs with main organismRemove interactions with only 1 source
     combination_pairs = list(combinations(organisms, 2))
     organism_pairs = []
-    for pair in combination_pairs:
-        if main_organism in pair:
-            organism_pairs.append(pair)
-    if len(organism_pairs) > 0:
+    if single:
+        for pair in combination_pairs:
+            if main_organism in pair:
+                organism_pairs.append(pair)
+    else:
+        organism_pairs = combination_pairs
+    if len(combination_pairs) > 0:
         for pair in organism_pairs:
             print('Pulling interactions for organism pair:', pair)
             inter = pd.DataFrame()
             # Isolate interactions for interspecies pair
             inter = df_biogrid.loc[(df_biogrid[ORGANISM_ID_A] == pair[0]) & (df_biogrid[ORGANISM_ID_B] == pair[1])]
             inter = inter.append(df_biogrid.loc[(df_biogrid[ORGANISM_ID_A] == pair[1]) & (df_biogrid[ORGANISM_ID_B] == pair[0])])
+            
+            inter = check_multiple_sources(inter)
             # Remove redundant interactions
             inter = inter.drop_duplicates(subset=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'])
             inter.reset_index(drop=True, inplace=True)
             if not inter.empty:
-                inter = remove_redundant_interactions(inter)
+                # Remove redundant interactions
+                nr = pd.DataFrame(np.sort(inter[['Entrez Gene Interactor A', 'Entrez Gene Interactor B']], axis=1), columns=['Entrez Gene Interactor A', 'Entrez Gene Interactor B']).drop_duplicates()
+                inter = inter.loc[nr.index].reset_index(drop=True)
                 inter_species.append(inter)
     return intra_species, inter_species
-
+'''
 #============ REMOVE REDUNDANT INTERACTIONS =============
 # Iteratively remove ProteinA - ProteinB interaction if
 # ProteinB - ProteinA interaction exists.
@@ -171,8 +219,12 @@ def remove_redundant_interactions(df):
         swapped_interactions = swapped_interactions.append(swapped)
     swapped_interactions = swapped_interactions[swapped_interactions['Entrez Gene Interactor A'] != swapped_interactions['Entrez Gene Interactor B']]
     df = df.drop(index=swapped_interactions.index).reset_index(drop=True)
+    
+    nr = pd.DataFrame(np.sort(df[['Entrez Gene Interactor A', 'Entrez Gene Interactor B']], axis=1), columns=['Entrez Gene Interactor A', 'Entrez Gene Interactor B']).drop_duplicates()
+    df = df.loc[nr.index].reset_index(drop=True)
+    
     return df
-
+'''
 #=================== GET ORGANISM PROTEOME =======================
 # Args: organism name or ID, and if proteins are reviewed (Swiss-Prot)
 # Return: dataframe of proteins and their sequence
@@ -180,6 +232,10 @@ def remove_redundant_interactions(df):
 def get_organism_proteome(organismRelease, reviewed='yes'):
     filepath = PROTEOMEPATH + organismRelease + '_non-reference-proteome.fasta'
     df_uniprot = pd.DataFrame()
+    if os.path.isfile(filepath):
+        df_uniprot = pd.read_csv(filepath, sep='\n', header=None)
+        df_uniprot = pd.DataFrame(data={'Entry': df_uniprot.iloc[::2, :][0].str.replace('>', '').reset_index(drop=True), 'Sequence': df_uniprot.iloc[1::2, :][0].reset_index(drop=True)})
+        return df_uniprot
 
     # Setup query to UniProt
     organism = organismRelease.split('-')[0].replace('_', '+')
