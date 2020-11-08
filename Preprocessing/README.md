@@ -2,7 +2,7 @@
 
 After downloading and unzipping a [BioGRID release](https://downloads.thebiogrid.org/BioGRID/Release-Archive/) file, run the following:
 
-1. get_biogrid_interactions.py <path_to_.tab2_or_.tab3_files> -f -m  
+1. get_biogrid_interactions.py <path_to_.txt_files> -f -c 2  
     
    This generates three directories with files with filtered positive protein interactions related to organismIDs and files containing their sequences:  
    * Intraspecies_Interactions/  
@@ -10,7 +10,11 @@ After downloading and unzipping a [BioGRID release](https://downloads.thebiogrid
    * Proteomes/  
    
    Option -f will apply filters to interactions  
-   Option -m will check for multiple different publication sources of interactions  
+   Option -c will check confidence of interactions
+   - 0 (default): includes all interactions  
+   - 1: only interactions listed multiple times  
+   - 2: only interactions listed multiple times by different publication sources  
+   
    *Note that reference proteomes will need to be downloaded separately.*  
     
    #### Output file format  
