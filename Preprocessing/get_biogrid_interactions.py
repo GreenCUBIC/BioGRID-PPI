@@ -4,17 +4,20 @@
 Created on Wed Jun 24 23:56:42 2020
 
 Description:
-    Collects positive protein interaction datasets from BioGRID
-    files using the UniProt database for mapping entrez gene IDs 
-    to protein IDs and sequences.
-    Options -f for applying filters to interactions and -m for
-    checking for multiple different sources of each interaction.
+    Collects positive protein interaction datasets from BioGRID files using 
+    the UniProt database for mapping entrez gene IDs to protein IDs and sequences.
+    Options -f for applying filters to interactions.
+    Option -m for checking sources of each interaction, 0, 1, or 2.
+    Level 0: include all listed interactions (will remove redundancies)
+    Level 1: only interactions listed multiple times (can have same PubmedIDs)
+    Level 2: only interactions with multiple different sources
 
 @author: Eric Arezza
 Last Updated: Nov 7 2020
 """
 
 __all__ = ['get_biogrid_data', 
+           'check_confidence',
            'separate_species_interactions', 
            'get_organism_proteome', 
            'map_bgup', 
@@ -85,13 +88,20 @@ THROUGHPUT_LEVELS=[
 describe_help = 'python get_biogrid_interactions.py path_to_files/ -m -f'
 parser = argparse.ArgumentParser(description=describe_help)
 parser.add_argument('path', help='Path to BioGRID .txt files')
-parser.add_argument('-m', '--multiple_sources', action='store_true', help='Check interactions from multiple sources')
+parser.add_argument('-c', '--confidence_level', choices=(0, 1, 2), type=int, 
+                    help='Confidence level of interactions,\
+                    0 (default): include all interactions\
+                    1: only interactions listed more than once\
+                    2: only interactions with multiple difference sources')
 parser.add_argument('-f', '--filters', action='store_true', help='Apply conservative filters')
 args = parser.parse_args()
 
 PATH = args.path
 FILTERS = args.filters
-MULTISOURCE = args.multiple_sources
+if args.confidence_level == None:
+    CONFIDENCE = 0
+else:
+    CONFIDENCE = args.confidence_level
 
 
 #=================== GET BIOGRID INTERACTIONS ==================
@@ -139,26 +149,35 @@ def get_biogrid_data(path, files):
         print('Finished reading', file)
     return biogrid_dfs
 
-#========================== CHECK MULTIPLE SOURCES ========================
+#========================== CHECK CONFIDENCE ========================
 # Args: BioGRID dataframe
 # Return: BioGRID dataframe with non-redundant, multi-sourced interactions
-#==========================================================================
-def check_multiple_sources(df):
-    print('Checking interactions for multiple sources, this may take a while...')
-    # Keep interactions listed more than once (reduces df)
-    df = df[df.duplicated(subset=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'], keep=False)]
-    df.insert(0, 0, df['Entrez Gene Interactor A'] + ' ' + df['Entrez Gene Interactor B'])
+def check_confidence(df):
     
-    interactions = df[0].unique()
-    multi = []
-    # Keep interactions with more than one Publication Source
-    for i in interactions:
-        sys.stdout.write('\rInteraction ' + str(list(interactions).index(i) + 1) + '/' + str(len(interactions)))
-        sys.stdout.flush()
-        if len(df[df[0] == i][PUBMED].unique()) > 1:
-            multi.append(df[df[0] == i][PUBMED].index[0])
-    df = df.loc[multi].reset_index(drop=True)
-    df.drop(columns=[0], inplace=True)
+    if CONFIDENCE == 1:
+        # Select only interactions with multiple listings (can have same PubmedID)
+        r = pd.DataFrame(np.sort(df[['Entrez Gene Interactor A', 'Entrez Gene Interactor B']], axis=1), columns=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'])
+        r = r[r.duplicated()]
+        r.reset_index(drop=True, inplace=True)
+    
+    elif CONFIDENCE == 2:
+        # Select interactions with multiple different sources (has more than one PubmedID source)
+        print('Checking interactions for multiple sources, this may take a while...')
+        # Keep interactions listed more than once (reduces df)
+        df = df[df.duplicated(subset=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'], keep=False)]
+        df.insert(0, 0, df['Entrez Gene Interactor A'] + ' ' + df['Entrez Gene Interactor B'])
+        
+        interactions = df[0].unique()
+        multi = []
+        # Keep interactions with more than one Publication Source
+        for i in interactions:
+            sys.stdout.write('\rInteraction ' + str(list(interactions).index(i) + 1) + '/' + str(len(interactions)))
+            sys.stdout.flush()
+            if len(df[df[0] == i][PUBMED].unique()) > 1:
+                multi.append(df[df[0] == i][PUBMED].index[0])
+        df = df.loc[multi].reset_index(drop=True)
+        df.drop(columns=[0], inplace=True)
+    
     # Remove redundant interactions where (A-B == B-A)
     nr = pd.DataFrame(np.sort(df[['Entrez Gene Interactor A', 'Entrez Gene Interactor B']], axis=1), columns=['Entrez Gene Interactor A', 'Entrez Gene Interactor B']).drop_duplicates()
     df = df.loc[nr.index].reset_index(drop=True)
@@ -182,8 +201,7 @@ def separate_species_interactions(organismRelease, df_biogrid):
     for organism in organisms:
         print('Pulling interactions for organism', organism)
         intra = df_biogrid.loc[(df_biogrid[ORGANISM_ID_A] == organism) & (df_biogrid[ORGANISM_ID_B] == organism)]
-        if MULTISOURCE:
-            intra = check_multiple_sources(intra)
+        intra = check_confidence(intra)
         # Remove redundant interactions
         intra = intra.drop_duplicates(subset=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'])
         intra.reset_index(drop=True, inplace=True)
@@ -209,8 +227,7 @@ def separate_species_interactions(organismRelease, df_biogrid):
             # Isolate interactions for interspecies pair
             inter = df_biogrid.loc[(df_biogrid[ORGANISM_ID_A] == pair[0]) & (df_biogrid[ORGANISM_ID_B] == pair[1])]
             inter = inter.append(df_biogrid.loc[(df_biogrid[ORGANISM_ID_A] == pair[1]) & (df_biogrid[ORGANISM_ID_B] == pair[0])])
-            if MULTISOURCE:
-                inter = check_multiple_sources(inter)
+            inter = check_confidence(inter)
             # Remove redundant interactions
             inter = inter.drop_duplicates(subset=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'])
             inter.reset_index(drop=True, inplace=True)
@@ -388,8 +405,8 @@ if __name__ == "__main__":
         path_to_biogrid_files = PATH
         files = os.listdir(path=path_to_biogrid_files)
         print('Applying filters:', FILTERS)
-        print('Checking for multiple sources:', MULTISOURCE)
-        print('Using files:\n', files)
+        print('Using confidence level:', CONFIDENCE)
+        print('Searching files:\n', files)
     except Exception as e:
         print(e, "\nPlease provide path to BioGRID .txt files, for example: 'python get_biogrid_interactions.py myFiles/'")
         exit()
@@ -435,3 +452,4 @@ if __name__ == "__main__":
                     verify_sequences(mapped, fasta, full_sequences, organismID[0]+'-'+organismID[1])
         else:
             print('No interspecies interactions')
+        
