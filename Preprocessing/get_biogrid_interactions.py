@@ -4,9 +4,11 @@
 Created on Wed Jun 24 23:56:42 2020
 
 Description:
-    Collects and filters positive protein interaction datasets 
-    from BioGRID files using the UniProt database for mapping
-    entrez gene IDs to protein IDs and sequences.
+    Collects positive protein interaction datasets from BioGRID
+    files using the UniProt database for mapping entrez gene IDs 
+    to protein IDs and sequences.
+    Options -f for applying filters to interactions and -m for
+    checking for multiple different sources of each interaction.
 
 @author: Eric Arezza
 Last Updated: Nov 7 2020
@@ -22,7 +24,7 @@ __version__ = '2.0'
 __author__ = 'Eric Arezza'
 
 
-import os, sys
+import os, sys, argparse
 import pandas as pd
 import numpy as np
 import urllib.parse
@@ -80,12 +82,24 @@ THROUGHPUT_LEVELS=[
     'low throughput'
     ]
 
+describe_help = 'python get_biogrid_interactions.py path_to_files/ -m -f'
+parser = argparse.ArgumentParser(description=describe_help)
+parser.add_argument('path', help='Path to BioGRID .txt files')
+parser.add_argument('-m', '--multiple_sources', action='store_true', help='Check interactions from multiple sources')
+parser.add_argument('-f', '--filters', action='store_true', help='Apply conservative filters')
+args = parser.parse_args()
+
+PATH = args.path
+FILTERS = args.filters
+MULTISOURCE = args.multiple_sources
+
+
 #=================== GET BIOGRID INTERACTIONS ==================
 # Args: path to biogrid files, a list of the file names, and
 #        desired use of filters true/false.
 # Return: dictionary with keys as biogrid organism name and 
 #         values as dataframe of interaction data
-def get_biogrid_data(path, files, filters=True):
+def get_biogrid_data(path, files):
     biogrid_dfs = {}
     global ORGANISM_ID_A
     global ORGANISM_ID_B
@@ -93,37 +107,35 @@ def get_biogrid_data(path, files, filters=True):
     # Iterate over each file
     for file in files:
         print('Reading', file)
-        # Read file into dataframe
-        df = pd.read_csv(path + file, sep='\t', dtype=str)
         if '.tab2' in file:
             suffix = '.tab2.txt'
         elif '.tab3' in file:
             suffix = '.tab3.txt'
+        # Read file into dataframe
+        df = pd.read_csv(path + file, sep='\t', dtype=str)
             
-        if filters:
+        if FILTERS:
             # Apply filters
             print('Applying filters...')
             df = df[df['Experimental System Type'].str.lower().isin(INTERACTION_TYPES)]
             df = df[df['Experimental System'].str.lower().isin(DETECTION_METHODS)]
             df = df[df['Throughput'].str.lower().isin(THROUGHPUT_LEVELS)]
-            # Filter for interactions with more than 1 Publication Source
-            if '.tab2' in file:
-                df = df[TAB2COLS]
-                PUBMED = 'Pubmed ID'
-            elif '.tab3' in file:
-                if file.split('-')[-1].split('.')[0] == '3':
-                    df = df[TAB3COLS]
-                    ORGANISM_ID_A = 'Organism Interactor A'
-                    ORGANISM_ID_B = 'Organism Interactor B'
-                elif file.split('-')[-1].split('.')[0] == '4':
-                    df = df[TAB3COLS_v4]
-                    ORGANISM_ID_A = 'Organism ID Interactor A'
-                    ORGANISM_ID_B = 'Organism ID Interactor B'
-                PUBMED = 'Publication Source'
-
-            biogrid_dfs[file.replace('BIOGRID-ORGANISM-', '').replace(suffix, '')] = df.reset_index(drop=True)
-        else:
-            biogrid_dfs[file.replace('BIOGRID-ORGANISM-', '').replace(suffix, '')] = df.reset_index(drop=True)
+            
+        if '.tab2' in file:
+            df = df[TAB2COLS]
+            PUBMED = 'Pubmed ID'
+        elif '.tab3' in file:
+            if file.split('-')[-1].split('.')[0] == '3':
+                df = df[TAB3COLS]
+                ORGANISM_ID_A = 'Organism Interactor A'
+                ORGANISM_ID_B = 'Organism Interactor B'
+            elif file.split('-')[-1].split('.')[0] == '4':
+                df = df[TAB3COLS_v4]
+                ORGANISM_ID_A = 'Organism ID Interactor A'
+                ORGANISM_ID_B = 'Organism ID Interactor B'
+            PUBMED = 'Publication Source'
+        
+        biogrid_dfs[file.replace('BIOGRID-ORGANISM-', '').replace(suffix, '')] = df.reset_index(drop=True)
         print('Finished reading', file)
     return biogrid_dfs
 
@@ -136,6 +148,7 @@ def check_multiple_sources(df):
     # Keep interactions listed more than once (reduces df)
     df = df[df.duplicated(subset=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'], keep=False)]
     df.insert(0, 0, df['Entrez Gene Interactor A'] + ' ' + df['Entrez Gene Interactor B'])
+    
     interactions = df[0].unique()
     multi = []
     # Keep interactions with more than one Publication Source
@@ -169,8 +182,8 @@ def separate_species_interactions(organismRelease, df_biogrid):
     for organism in organisms:
         print('Pulling interactions for organism', organism)
         intra = df_biogrid.loc[(df_biogrid[ORGANISM_ID_A] == organism) & (df_biogrid[ORGANISM_ID_B] == organism)]
-        
-        intra = check_multiple_sources(intra)
+        if MULTISOURCE:
+            intra = check_multiple_sources(intra)
         # Remove redundant interactions
         intra = intra.drop_duplicates(subset=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'])
         intra.reset_index(drop=True, inplace=True)
@@ -196,8 +209,8 @@ def separate_species_interactions(organismRelease, df_biogrid):
             # Isolate interactions for interspecies pair
             inter = df_biogrid.loc[(df_biogrid[ORGANISM_ID_A] == pair[0]) & (df_biogrid[ORGANISM_ID_B] == pair[1])]
             inter = inter.append(df_biogrid.loc[(df_biogrid[ORGANISM_ID_A] == pair[1]) & (df_biogrid[ORGANISM_ID_B] == pair[0])])
-            
-            inter = check_multiple_sources(inter)
+            if MULTISOURCE:
+                inter = check_multiple_sources(inter)
             # Remove redundant interactions
             inter = inter.drop_duplicates(subset=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'])
             inter.reset_index(drop=True, inplace=True)
@@ -207,24 +220,7 @@ def separate_species_interactions(organismRelease, df_biogrid):
                 inter = inter.loc[nr.index].reset_index(drop=True)
                 inter_species.append(inter)
     return intra_species, inter_species
-'''
-#============ REMOVE REDUNDANT INTERACTIONS =============
-# Iteratively remove ProteinA - ProteinB interaction if
-# ProteinB - ProteinA interaction exists.
-def remove_redundant_interactions(df):
-    proteins = (df['Entrez Gene Interactor A'], df['Entrez Gene Interactor B'])
-    swapped_interactions = pd.DataFrame()
-    for i in range(0, len(proteins[0])):
-        swapped = df.loc[(df['Entrez Gene Interactor A'] == proteins[1][i]) & (df['Entrez Gene Interactor B'] == proteins[0][i])]
-        swapped_interactions = swapped_interactions.append(swapped)
-    swapped_interactions = swapped_interactions[swapped_interactions['Entrez Gene Interactor A'] != swapped_interactions['Entrez Gene Interactor B']]
-    df = df.drop(index=swapped_interactions.index).reset_index(drop=True)
-    
-    nr = pd.DataFrame(np.sort(df[['Entrez Gene Interactor A', 'Entrez Gene Interactor B']], axis=1), columns=['Entrez Gene Interactor A', 'Entrez Gene Interactor B']).drop_duplicates()
-    df = df.loc[nr.index].reset_index(drop=True)
-    
-    return df
-'''
+
 #=================== GET ORGANISM PROTEOME =======================
 # Args: organism name or ID, and if proteins are reviewed (Swiss-Prot)
 # Return: dataframe of proteins and their sequence
@@ -385,9 +381,11 @@ if __name__ == "__main__":
     
     # Get BioGRID files from supplied directory path
     try:
-        path_to_biogrid_files = sys.argv[1]
+        path_to_biogrid_files = PATH
         files = os.listdir(path=path_to_biogrid_files)
-        print('Using files:\n',files)
+        print('Applying filters:', FILTERS)
+        print('Checking for multiple sources:', MULTISOURCE)
+        print('Using files:\n', files)
     except Exception as e:
         print(e, "\nPlease provide path to BioGRID .txt files, for example: 'python get_biogrid_interactions.py myFiles/'")
         exit()
@@ -401,7 +399,7 @@ if __name__ == "__main__":
         os.mkdir(PROTEOMEPATH)
     
     # Collect and filter BioGRID interactions
-    bgframes = get_biogrid_data(path_to_biogrid_files, files, filters=True)
+    bgframes = get_biogrid_data(path_to_biogrid_files, files)
     
     # Iterate over each BIOGRID-ORGANISM release file
     for organismRelease, df_biogrid in bgframes.items():
