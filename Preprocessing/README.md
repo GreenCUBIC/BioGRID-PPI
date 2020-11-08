@@ -2,14 +2,16 @@
 
 After downloading and unzipping a [BioGRID release](https://downloads.thebiogrid.org/BioGRID/Release-Archive/) file, run the following:
 
-1. get_biogrid_interactions.py <path_to_.tab2_or_.tab3_files>
+1. get_biogrid_interactions.py <path_to_.tab2_or_.tab3_files> -f -m  
     
    This generates three directories with files with filtered positive protein interactions related to organismIDs and files containing their sequences:  
    * Intraspecies_Interactions/  
    * Interspecies_Interactions/  
    * Proteomes/  
    
-   *Note that reference proteomes will need to be downloaded separately.*  
+   *Note that reference proteomes will need to be downloaded separately.*
+   Option -f will apply filters to interactions  
+   Option -m will check for multiple different publication sources of interactions  
    #### Output file format  
    
    Sequence data as .fasta files, example:  
@@ -23,10 +25,11 @@ After downloading and unzipping a [BioGRID release](https://downloads.thebiogrid
    ProteinC  ProteinD  
    ...  
    
-2. generate_negative_interactions.py -pseq <file_positive_sequences.fasta> -p <file_positive_interactions.tsv>  
+2. generate_negative_interactions.py -pseq <file_positive_sequences.fasta> -p <file_positive_interactions.tsv> -d  
    
    This will generate negative interaction data based on random sampling of proteins in the positive interactions, not found in positive pairs.  
    *Currently only supports negatives for Intraspecies_Interactions/.*  
+   Option -d will generate random pairs of proteins having no similar subcellular locations as listed by UniProt
     
 3. verify_balance_interactions.py -pseq <file_positive_sequences.fasta> -p <file_positive_interactions.tsv> -nseq <file_negative_sequences.fasta> -n <file_negative_interactions.tsv> -output <file_suffix_string>  
 
