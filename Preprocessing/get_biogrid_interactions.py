@@ -290,12 +290,16 @@ def map_bgup(organismRelease, df_biogrid):
     'columns': 'id,sequence,reviewed',
     'query': geneIDs,
     }
-    data = urllib.parse.urlencode(params)
-    data = data.encode('utf-8')
-    req = urllib.request.Request(url, data)
-    with urllib.request.urlopen(req) as webresults:
-       response = webresults.read().decode('utf-8')
-    
+    print('Querying UniProt for mappings...')
+    for x in range(0, 3):
+        try:
+            data = urllib.parse.urlencode(params)
+            data = data.encode('utf-8')
+            req = urllib.request.Request(url, data)
+            with urllib.request.urlopen(req) as webresults:
+               response = webresults.read().decode('utf-8')
+        except:
+            print('Error connecting to UniProt, trying again...')
     if response == '':
         print('No UniProt mapping results found...\nNo dataset created.')
         return pd.DataFrame(), pd.DataFrame()
