@@ -202,16 +202,10 @@ def separate_species_interactions(organismRelease, df_biogrid):
         print('Pulling interactions for organism', organism)
         intra = df_biogrid.loc[(df_biogrid[ORGANISM_ID_A] == organism) & (df_biogrid[ORGANISM_ID_B] == organism)]
         intra = check_confidence(intra)
-        # Remove redundant interactions
-        intra = intra.drop_duplicates(subset=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'])
-        intra.reset_index(drop=True, inplace=True)
         if not intra.empty:
-            # Remove redundant interactions
-            nr = pd.DataFrame(np.sort(intra[['Entrez Gene Interactor A', 'Entrez Gene Interactor B']], axis=1), columns=['Entrez Gene Interactor A', 'Entrez Gene Interactor B']).drop_duplicates()
-            intra = intra.loc[nr.index].reset_index(drop=True)
             intra_species.append(intra)
             
-    # Get combinations of interspecies pairs with main organismRemove interactions with only 1 source
+    # Get combinations of interspecies pairs with main organism
     combination_pairs = list(combinations(organisms, 2))
     organism_pairs = []
     if single:
@@ -228,14 +222,9 @@ def separate_species_interactions(organismRelease, df_biogrid):
             inter = df_biogrid.loc[(df_biogrid[ORGANISM_ID_A] == pair[0]) & (df_biogrid[ORGANISM_ID_B] == pair[1])]
             inter = inter.append(df_biogrid.loc[(df_biogrid[ORGANISM_ID_A] == pair[1]) & (df_biogrid[ORGANISM_ID_B] == pair[0])])
             inter = check_confidence(inter)
-            # Remove redundant interactions
-            inter = inter.drop_duplicates(subset=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'])
-            inter.reset_index(drop=True, inplace=True)
             if not inter.empty:
-                # Remove redundant interactions
-                nr = pd.DataFrame(np.sort(inter[['Entrez Gene Interactor A', 'Entrez Gene Interactor B']], axis=1), columns=['Entrez Gene Interactor A', 'Entrez Gene Interactor B']).drop_duplicates()
-                inter = inter.loc[nr.index].reset_index(drop=True)
                 inter_species.append(inter)
+                
     return intra_species, inter_species
 
 #=================== GET ORGANISM PROTEOME =======================
