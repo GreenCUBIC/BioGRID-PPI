@@ -43,66 +43,8 @@ args = parser.parse_args()
 POS = args.positive[0]
 POS_SEQ = args.pos_sequences[0]
 LOC = args.diff_subcell_local
-'''
+
 #================ GENERATE NEGATIVES ==============
-# Args: dataframe of positive protein interactions
-# Return: dataframe of negative protein interactions
-def generate_negatives(df_pos):
-    sample_proteins = df_pos[0].append(df_pos[1]).unique()
-    pos_pairs = pd.Series(df_pos[0] + ' ' + df_pos[1], dtype=str)
-    df_neg = pd.DataFrame()
-    if LOC:
-        # Get all protein info
-        df_uniprot = get_protein_info(sample_proteins)
-        print(df_uniprot.shape[0], 'available proteins for sampling...')
-        sample_proteins = df_uniprot['Entry'].unique()
-        
-    neg_pairs = pd.Series()
-    while(df_neg.shape[0] != df_pos.shape[0]):
-        sys.stdout.write('\r...Generating negative pairs...' + str(df_neg.shape[0]) + '/' + str(df_pos.shape[0]))
-        sys.stdout.flush()
-        # Randomly sample a protein pair from list of proteins
-        new_pair = np.random.choice(sample_proteins, 2)
-        if LOC:
-            # Check if pair has info
-            if df_uniprot[df_uniprot['Entry'].isin(new_pair)].shape[0] != 2:
-                continue
-            else:
-                # Add to negatives if no similar subcellular locations
-                prot_A = df_uniprot[df_uniprot['Entry'] == new_pair[0]].reset_index(drop=True)
-                prot_B = df_uniprot[df_uniprot['Entry'] == new_pair[1]].reset_index(drop=True)
-                if len(set(prot_A['Subcellular location [CC]'][0]) & set(prot_B['Subcellular location [CC]'][0])) == 0:
-                    # Check if protein pair exists in positive and negative interactions
-                    exists = pos_pairs[pos_pairs.str.contains(new_pair[0] + ' ' + new_pair[1])]
-                    exists.append(pos_pairs[pos_pairs.str.contains(new_pair[1] + ' ' + new_pair[0])])
-                    if len(neg_pairs) > 0:
-                        exists.append(neg_pairs[neg_pairs.str.contains(new_pair[0] + ' ' + new_pair[1])])
-                        exists.append(neg_pairs[neg_pairs.str.contains(new_pair[1] + ' ' + new_pair[0])])
-                    if exists.empty:
-                        neg_pairs = neg_pairs.append(pd.Series(new_pair[0] + ' ' + new_pair[1]), ignore_index=True)
-                        neg_pairs.drop_duplicates(inplace=True)
-                        df_neg = df_neg.append({0: new_pair[0], 1: new_pair[1]}, ignore_index=True)
-                    df_neg = df_neg.drop_duplicates()
-                    df_neg = df_neg.reset_index(drop=True)
-        else:
-            # Check if protein pair exists in positive and negative interactions
-            exists = pos_pairs[pos_pairs.str.contains(new_pair[0] + ' ' + new_pair[1])]
-            exists.append(pos_pairs[pos_pairs.str.contains(new_pair[1] + ' ' + new_pair[0])])
-            if len(neg_pairs) > 0:
-                exists.append(neg_pairs[neg_pairs.str.contains(new_pair[0] + ' ' + new_pair[1])])
-                exists.append(neg_pairs[neg_pairs.str.contains(new_pair[1] + ' ' + new_pair[0])])
-            if exists.empty:
-                neg_pairs = neg_pairs.append(pd.Series(new_pair[0] + ' ' + new_pair[1]), ignore_index=True)
-                neg_pairs.drop_duplicates(inplace=True)
-                df_neg = df_neg.append({0: new_pair[0], 1: new_pair[1]}, ignore_index=True)
-            df_neg = df_neg.drop_duplicates()
-            df_neg = df_neg.reset_index(drop=True)
-    # Save to file
-    #df_neg.to_csv(POS.replace('positive', 'negative'), sep='\t', index=False, header=False)
-    print('\nDone!')
-    return df_neg.reset_index(drop=True)
-'''
-#================ GENERATE NEGATIVES FASTER ==============
 # Args: dataframe of positive protein interactions
 # Return: dataframe of negative protein interactions
 def generate_negatives(df_pos):
@@ -115,13 +57,15 @@ def generate_negatives(df_pos):
     if LOC:
         # Get all protein info
         df_uniprot = get_protein_info(sample_proteins)
+        if df_uniprot.empty:
+            print('Unable to retrieve protein subcellular locations from UniProt...exiting.')
+            exit()
         print(df_uniprot.shape[0], 'available proteins for sampling...')
         sample_proteins = df_uniprot['Entry'].unique()
-        
+    print('Generating negative pairs...' )
     df_neg = pd.DataFrame()
     while (df_neg.shape[0] < df_pos.shape[0]):
-        sys.stdout.write('\r...Generating negative pairs...' + str(df_neg.shape[0]) + '/' + str(df_pos.shape[0]))
-        sys.stdout.flush()
+        
         # Randomly sample 2 proteins for possible new pairs
         neg = []
         for i in range(df_neg.shape[0], df_pos.shape[0]+1):
@@ -146,6 +90,8 @@ def generate_negatives(df_pos):
             df_neg_temp = neg.drop(index=exists.index)
         
         # Remove added swapped pairs
+        #nr = pd.DataFrame(np.sort(df_neg_temp[['Entrez Gene Interactor A', 'Entrez Gene Interactor B']], axis=1), columns=['Entrez Gene Interactor A', 'Entrez Gene Interactor B']).drop_duplicates()
+        #df_neg_temp = df_neg_temp.loc[nr.index].reset_index(drop=True)
         df_neg_temp = df_neg_temp[df_neg_temp.index % 2 == 0]
         # Remove other redundant pairs
         df_neg_temp = df_neg_temp.drop_duplicates()
@@ -153,6 +99,8 @@ def generate_negatives(df_pos):
         
         # Add to negatives
         df_neg = df_neg.append(df_neg_temp).reset_index(drop=True)
+        sys.stdout.write('\r' + str(df_neg.shape[0]) + '/' + str(df_pos.shape[0]))
+        sys.stdout.flush()
     
     if df_neg.shape[0] > df_pos.shape[0]:
         df_neg = df_neg[0:df_pos.shape[0]]
@@ -163,9 +111,7 @@ def generate_negatives(df_pos):
     if LOC:
         filepath = POS.replace('positive', 'negative_seg')
     df_neg.to_csv(filepath, sep='\t', index=False, header=False)
-    print('Done!')
-    
-    print('\nDone!')
+
     return df_neg
 
 #=============== GET NEGATIVE SEQUENCES ============
@@ -188,55 +134,48 @@ def get_negative_sequences(df_neg, df_pos_seq):
     return neg_seq
 
 def get_protein_info(proteins):
-    # Retrieve data in n proteins batches
-    df = pd.DataFrame()
-    if len(proteins) < 400:
-        n = len(proteins)
-    else:
-        n = 400
-    proteins_query = '+or+'.join(proteins[df.shape[0]:n])
-    
-    while df.shape[0] < len(proteins)-1:
-        
-        url = 'https://www.uniprot.org/uniprot/?query=' + proteins_query
-        params = {
-        'format': 'tab',
-        'columns': 'id,sequence,comment(SUBCELLULAR LOCATION)'
-        }
-        # Request UniProt info for given organism
-        sys.stdout.write('\r...Collecting protein info from UniProt...' + str(df.shape[0]) + '/' + str(len(proteins)))
-        data = urllib.parse.urlencode(params)
-        data = data.encode('utf-8')
-        req = urllib.request.Request(url, data)
-        with urllib.request.urlopen(req) as webpage:
-            response = webpage.read().decode('utf-8')
-        if response == '':
-            print('\nNo UniProt response.')
-            return pd.DataFrame()
-        df_uniprot = pd.read_csv(StringIO(response), sep='\t', dtype=str)
-        #df_uniprot = df_uniprot[df_uniprot['Entry'].isin(proteins[df.shape[0]:n])]
-        df_uniprot = df_uniprot[df_uniprot['Entry'].isin(proteins)]
-        df_uniprot.dropna(inplace=True)
-        df_uniprot.reset_index(drop=True, inplace=True)
-        df_uniprot['Subcellular location [CC]'] = df_uniprot['Subcellular location [CC]'].str.replace('SUBCELLULAR LOCATION: ', '')
-        for i in range(0, df_uniprot.shape[0]):
-            df_uniprot['Subcellular location [CC]'][i] = re.sub(r'\{[^}]*\}', '', df_uniprot['Subcellular location [CC]'][i])
-            df_uniprot['Subcellular location [CC]'][i] = re.split('[?.,:;]', df_uniprot['Subcellular location [CC]'][i].lower())[:-1]
-            df_uniprot['Subcellular location [CC]'][i] = [x.strip(' ') for x in df_uniprot['Subcellular location [CC]'][i]]
 
-        df = df.append(df_uniprot)
-        df.reset_index(drop=True, inplace=True)
-        sys.stdout.flush()
-        if (df.shape[0] + 400) > len(proteins):
-            n = len(proteins)
-        else:
-            n += 400
-        proteins_query = '+or+'.join(proteins[df.shape[0]:n])
-    df.drop_duplicates(subset=['Entry'], inplace=True)
-    df.reset_index(drop=True, inplace=True)
-    print('\nDone!')
+    proteins_query = str(proteins.tolist()).strip('[').strip(']').replace("'", "").replace(',', '')
+    url = 'https://www.uniprot.org/uploadlists/'
+    params = {
+    'from': 'ACC+ID',
+    'to': 'ACC',
+    'format': 'tab',
+    'columns': 'id,comment(SUBCELLULAR LOCATION)',
+    'query': proteins_query,
+    }
+    for x in range(0, 3):
+        try:
+            print('Getting protein info from UniProt...')
+            # Request UniProt info for given proteins
+            data = urllib.parse.urlencode(params)
+            data = data.encode('utf-8')
+            req = urllib.request.Request(url, data)
+            with urllib.request.urlopen(req) as webpage:
+                response = webpage.read().decode('utf-8')
+            if response == '':
+                print('\nNo UniProt response.')
+            else:
+                break
+        except:
+            pass
+    if response == '':
+        return pd.DataFrame()
     
-    return df
+    df_uniprot = pd.read_csv(StringIO(response), sep='\t', dtype=str)
+    query = df_uniprot.columns.tolist()[-1]
+    df_uniprot.rename(columns={query: 'Query'}, inplace=True)
+
+    df_uniprot.dropna(inplace=True)
+    df_uniprot.reset_index(drop=True, inplace=True)
+    df_uniprot['Subcellular location [CC]'] = df_uniprot['Subcellular location [CC]'].str.replace('SUBCELLULAR LOCATION: ', '')
+    for i in range(0, df_uniprot.shape[0]):
+        df_uniprot['Subcellular location [CC]'][i] = re.sub(r'\{[^}]*\}', '', df_uniprot['Subcellular location [CC]'][i])
+        df_uniprot['Subcellular location [CC]'][i] = re.split('[?.,:;]', df_uniprot['Subcellular location [CC]'][i].lower())[:-1]
+        df_uniprot['Subcellular location [CC]'][i] = [x.strip(' ') for x in df_uniprot['Subcellular location [CC]'][i]]
+    print('Done!')
+    
+    return df_uniprot
 
 if __name__ == "__main__":
     if POS == None or POS_SEQ == None:
@@ -247,7 +186,7 @@ if __name__ == "__main__":
     print("Reading files...")
     df_pos = pd.read_csv(POS, sep='\t', dtype=str, header=None)
     df_pos_seq = pd.read_csv(POS_SEQ, sep='\t', dtype=str, header=None)
-    print('Generating', df_pos.shape[0], 'negative interactions...')
+    print(df_pos.shape[0], 'negative interactions to be generated...')
     df_neg = generate_negatives(df_pos)
     df_neg_seq = get_negative_sequences(df_neg, df_pos_seq)
     print('Complete!')
