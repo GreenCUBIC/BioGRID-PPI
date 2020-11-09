@@ -156,9 +156,9 @@ def check_confidence(df):
     
     if CONFIDENCE == 1:
         # Select only interactions with multiple listings (can have same PubmedID)
-        r = pd.DataFrame(np.sort(df[['Entrez Gene Interactor A', 'Entrez Gene Interactor B']], axis=1), columns=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'])
+        r = pd.DataFrame(np.sort(df[['Entrez Gene Interactor A', 'Entrez Gene Interactor B']], axis=1), columns=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'], dtype=str)
         r = r[r.duplicated()]
-        r.reset_index(drop=True, inplace=True)
+        df = df.reindex(r.index).dropna().reset_index(drop=True)
     
     elif CONFIDENCE == 2:
         # Select interactions with multiple different sources (has more than one PubmedID source)
@@ -179,8 +179,9 @@ def check_confidence(df):
         df.drop(columns=[0], inplace=True)
     
     # Remove redundant interactions where (A-B == B-A)
-    nr = pd.DataFrame(np.sort(df[['Entrez Gene Interactor A', 'Entrez Gene Interactor B']], axis=1), columns=['Entrez Gene Interactor A', 'Entrez Gene Interactor B']).drop_duplicates()
-    df = df.loc[nr.index].reset_index(drop=True)
+    nr = pd.DataFrame(np.sort(df[['Entrez Gene Interactor A', 'Entrez Gene Interactor B']], axis=1), columns=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'], dtype=str).drop_duplicates()
+    #df = df.loc[nr.index].dropna().reset_index(drop=True)
+    df = df.reindex(nr.index).dropna().reset_index(drop=True)
     
     return df
 
@@ -347,22 +348,24 @@ def map_bgup(organismRelease, df_biogrid):
         
         # Write out .tsv interactions and .fasta sequences, note: overwrites files of same name
         if not mapped.empty:
-            if not os.path.isfile(path + organismRelease + '_ID_'  + organisms_name + '_positive_interactions.tsv'):
+            filepath = path + organismRelease + '_ID_'  + organisms_name + '_c' + str(CONFIDENCE) + '_positive_interactions.tsv'
+            if not os.path.isfile(filepath):
                 print('Creating positive interactions for organismID:', organisms_name)
-                mapped.to_csv(path + organismRelease + '_ID_'  + organisms_name + '_positive_interactions.tsv', columns=['Protein A', 'Protein B'], sep='\t', header=False, index=False)
+                mapped.to_csv(filepath, columns=['Protein A', 'Protein B'], sep='\t', header=False, index=False)
             else:
-                print(path + organismRelease + '_ID_'  + organisms_name + '_positive_interactions.tsv', 'already exists.')
+                print(filepath, 'already exists.')
         else:
             print('No positive interactions created for organismID:', organisms_name, 'in', organismRelease, '...check geneID-proteinID mappings...')
         
         if not fasta.empty:
-            if not os.path.isfile(path + organismRelease + '_ID_'  + organisms_name + '_positive_sequences.fasta'):
+            filepath = path + organismRelease + '_ID_'  + organisms_name + '_c' + str(CONFIDENCE) + '_positive_sequences.fasta'
+            if not os.path.isfile(filepath):
                 print('Creating positive sequences for organismID:', organisms_name)
                 fasta_copy = fasta.copy()
                 fasta_copy['ProteinID'] = ('>' + fasta_copy['ProteinID'])
-                fasta_copy.to_csv(path + organismRelease + '_ID_'  + organisms_name + '_positive_sequences.fasta', columns=['ProteinID', 'Sequence'], sep='\n', header=False, index=False)
+                fasta_copy.to_csv(filepath, columns=['ProteinID', 'Sequence'], sep='\n', header=False, index=False)
             else:
-                print(path + organismRelease + '_ID_'  + organisms_name + '_positive_sequences.fasta', 'already exists.')
+                print(filepath, 'already exists.')
         else:
             print('No positive sequences created for organismID:', organisms_name, 'in', organismRelease, '...check proteinID-sequence mappings...')
         return mapped, fasta
