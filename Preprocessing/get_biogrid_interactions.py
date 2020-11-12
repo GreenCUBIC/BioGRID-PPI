@@ -34,6 +34,7 @@ import urllib.parse
 import urllib.request
 from io import StringIO
 from itertools import combinations
+import time
 
 # To store files
 PROTEOMEPATH = 'Proteomes/'
@@ -57,7 +58,7 @@ TAB3COLS = [
     'Publication Source', 
     'Organism Interactor A', 
     'Organism Interactor B']
-TAB3COLS_v4 = [
+TAB3COLSV4 = [
     'Entrez Gene Interactor A', 
     'Entrez Gene Interactor B', 
     'Publication Source', 
@@ -140,10 +141,14 @@ def get_biogrid_data(path, files):
                 ORGANISM_ID_A = 'Organism Interactor A'
                 ORGANISM_ID_B = 'Organism Interactor B'
             elif file.split('-')[-1].split('.')[0] == '4':
-                df = df[TAB3COLS_v4]
+                df = df[TAB3COLSV4]
                 ORGANISM_ID_A = 'Organism ID Interactor A'
                 ORGANISM_ID_B = 'Organism ID Interactor B'
             PUBMED = 'Publication Source'
+        
+        df = df[df['Entrez Gene Interactor A'] != '-']
+        df = df[df['Entrez Gene Interactor B'] != '-']
+        df.dropna(subset=['Entrez Gene Interactor A', 'Entrez Gene Interactor B', PUBMED], inplace=True)
         
         biogrid_dfs[file.replace('BIOGRID-ORGANISM-', '').replace(suffix, '')] = df.reset_index(drop=True)
         print('Finished reading', file)
@@ -154,35 +159,64 @@ def get_biogrid_data(path, files):
 # Return: BioGRID dataframe with non-redundant, multi-sourced interactions
 def check_confidence(df):
     
+    # GET ALL SWAPPED INTERACTIONS, WHERE AB AND BA EXIST
+    df.insert(0, 0, df['Entrez Gene Interactor A'] + ' ' + df['Entrez Gene Interactor B'])
+    df.insert(1, 1, df['Entrez Gene Interactor B'] + ' ' + df['Entrez Gene Interactor A'])
+    swap = df[df[1].isin(df[0].unique())]
+    # Exclude self-interactions
+    swap = swap[swap['Entrez Gene Interactor A'] != swap['Entrez Gene Interactor B']]
+    
+    # Get unique A-B interactions, ignoring B-A redundancies
+    nr = pd.DataFrame(np.sort(swap[0]), columns=[0], dtype=str).drop_duplicates()
+    swap_nr = swap[swap[0].isin(nr[0].unique())].drop_duplicates(subset=[0])
+    
+    # GET ALL OTHER INTERACTIONS FOUND MORE THAN ONCE
+    # Drop found A-B and B-A interactions
+    dup = df.drop(index=swap.index)
+    # Get all other duplicated interactions
+    dup = dup[dup.duplicated(subset=[0])]
+    # Drop duplicates to get unique interactions listed multiple times
+    multi = dup.drop_duplicates(subset=[0])
+    
     if CONFIDENCE == 1:
-        # Select only interactions with multiple listings (can have same PubmedID)
-        r = pd.DataFrame(np.sort(df[['Entrez Gene Interactor A', 'Entrez Gene Interactor B']], axis=1), columns=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'], dtype=str)
-        r = r[r.duplicated()]
-        df = df.reindex(r.index).dropna().reset_index(drop=True)
+        # Combine all swapped (A-B instance only) interactions with other duplicated interactions
+        df = df.loc[np.append(swap_nr.index, multi.index)].drop(columns=[0,1]).drop_duplicates()
     
-    elif CONFIDENCE == 2:
-        # Select interactions with multiple different sources (has more than one PubmedID source)
-        print('Checking interactions for multiple sources, this may take a while...')
-        # Keep interactions listed more than once (reduces df)
-        df = df[df.duplicated(subset=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'], keep=False)]
-        df.insert(0, 0, df['Entrez Gene Interactor A'] + ' ' + df['Entrez Gene Interactor B'])
+    elif CONFIDENCE == 0:
+        # Combine all swapped (A-B instances only) interactions with all other interactions
+        df = df.loc[np.append(swap_nr.index, df.drop(index=swap.index).index)].drop(columns=[0,1]).drop_duplicates()
         
+    elif CONFIDENCE == 2:
+        # Select interactions with multiple different sources (has more than one PubMedID source)
+        print('Checking interactions for multiple sources, this may take a while...')
+        
+        # Combine all A-B and B-A interactions with other duplicated interactions
+        df = df.loc[np.append(swap.index, dup.index)]
         interactions = df[0].unique()
-        multi = []
-        # Keep interactions with more than one Publication Source
+        many = np.empty(0, dtype=str)
+        
+        start = time.time()
         for i in interactions:
-            sys.stdout.write('\rInteraction ' + str(list(interactions).index(i) + 1) + '/' + str(len(interactions)))
+            sys.stdout.write('\rInteraction ' + str(np.where(interactions == i)[0][0] + 1) + '/' + str(len(interactions)))
             sys.stdout.flush()
-            if len(df[df[0] == i][PUBMED].unique()) > 1:
-                multi.append(df[df[0] == i][PUBMED].index[0])
-        df = df.loc[multi].reset_index(drop=True)
-        df.drop(columns=[0], inplace=True)
-    
-    # Remove redundant interactions where (A-B == B-A)
-    nr = pd.DataFrame(np.sort(df[['Entrez Gene Interactor A', 'Entrez Gene Interactor B']], axis=1), columns=['Entrez Gene Interactor A', 'Entrez Gene Interactor B'], dtype=str).drop_duplicates()
-    #df = df.loc[nr.index].dropna().reset_index(drop=True)
-    df = df.reindex(nr.index).dropna().reset_index(drop=True)
-    
+            
+            swap = i.split()[1] + ' ' + i.split()[0]
+            # Check if swapped interaction exists
+            if df[df[0] == swap].shape[0] > 0:
+                # Add interaction if swap has different source
+                if set(df[df[0] == i][PUBMED].unique()) != set(df[df[0] == swap][PUBMED].unique()):
+                    if i not in many and swap not in many:
+                        many = np.append(many, i)
+            else:
+                # Check if interaction has mulitple different sources
+                if len(df[df[0] == i][PUBMED].unique()) > 1:
+                    if i not in many:
+                        many = np.append(many, i)
+        print('\nTime to find interactions with multiple different sources:', round(time.time() - start, 2), 'seconds')
+        
+        df = df[df[0].isin(many)].drop_duplicates().reset_index(drop=True)
+        df.drop(columns=[0, 1], inplace=True)
+
     return df
 
 #====================== SEPARATE SPECIES INTERACTIONS ==========================
@@ -249,11 +283,16 @@ def get_organism_proteome(organismRelease, reviewed='yes'):
     }
     # Request UniProt info for given organism
     print('...Collecting UniProt info for organismID: '+ organism.replace('+', ' ') +'...')
-    data = urllib.parse.urlencode(params)
-    data = data.encode('utf-8')
-    req = urllib.request.Request(url, data)
-    with urllib.request.urlopen(req) as webpage:
-        response = webpage.read().decode('utf-8')
+    response = ''
+    for x in range(0, 3):
+        try:
+            data = urllib.parse.urlencode(params)
+            data = data.encode('utf-8')
+            req = urllib.request.Request(url, data)
+            with urllib.request.urlopen(req) as webpage:
+                response = webpage.read().decode('utf-8')
+        except:
+            print('Error connecting to UniProt, trying again...')
     if response == '':
         print('No UniProt results found for organism:', organism.replace('+', ' '), 'with reviewed='+reviewed+'...')
         return pd.DataFrame()
@@ -298,6 +337,7 @@ def map_bgup(organismRelease, df_biogrid):
     'query': geneIDs,
     }
     print('Querying UniProt for mappings...')
+    response = ''
     for x in range(0, 3):
         try:
             data = urllib.parse.urlencode(params)
