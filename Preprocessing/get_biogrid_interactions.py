@@ -9,8 +9,8 @@ Description:
     Options -f for applying filters to interactions.
     Option -m for checking sources of each interaction, 0, 1, or 2.
     Level 0: include all listed interactions (will remove redundancies)
-    Level 1: only interactions listed multiple times
-    Level 2: only interactions listed multiple times with different sources
+    Level 1: only interactions listed multiple times (can have same PubmedIDs)
+    Level 2: only interactions listed multiple with different sources
 
 @author: Eric Arezza
 Last Updated: Nov 7 2020
@@ -180,18 +180,18 @@ def check_confidence(df):
     
     if CONFIDENCE == 1:
         # Combine all swapped (A-B instance only) interactions with other duplicated interactions
-        df = df.loc[np.append(swap_nr.index, multi.index)].drop(columns=[0,1]).drop_duplicates()
+        df = df.reindex(index=np.append(swap_nr.index, multi.index)).drop(columns=[0,1]).drop_duplicates()
     
     elif CONFIDENCE == 0:
         # Combine all swapped (A-B instances only) interactions with all other interactions
-        df = df.loc[np.append(swap_nr.index, df.drop(index=swap.index).index)].drop(columns=[0,1]).drop_duplicates()
+        df = df.reindex(index=np.append(swap_nr.index, df.drop(index=swap.index).index)).drop(columns=[0,1]).drop_duplicates()
         
     elif CONFIDENCE == 2:
         # Select interactions with multiple different sources (has more than one PubMedID source)
         print('Checking interactions for multiple sources, this may take a while...')
         
         # Combine all A-B and B-A interactions with other duplicated interactions
-        df = df.loc[np.append(swap.index, dup.index)]
+        df = df.reindex(index=np.append(swap.index, dup.index))
         interactions = df[0].unique()
         many = np.empty(0, dtype=str)
         
@@ -214,6 +214,9 @@ def check_confidence(df):
                         many = np.append(many, i)
         print('\nTime to find interactions with multiple different sources:', round(time.time() - start, 2), 'seconds')
         
+        # Get interactions from confidence 1
+        df = df.reindex(index=np.append(swap_nr.index, multi.index)).drop_duplicates()
+        # Only include interactions with many different sources
         df = df[df[0].isin(many)].drop_duplicates().reset_index(drop=True)
         df.drop(columns=[0, 1], inplace=True)
 
