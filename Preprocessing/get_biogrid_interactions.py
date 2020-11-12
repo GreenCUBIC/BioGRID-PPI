@@ -9,8 +9,8 @@ Description:
     Options -f for applying filters to interactions.
     Option -m for checking sources of each interaction, 0, 1, or 2.
     Level 0: include all listed interactions (will remove redundancies)
-    Level 1: only interactions listed multiple times (can have same PubmedIDs)
-    Level 2: only interactions listed multiple with different sources
+    Level 1: only interactions listed multiple times
+    Level 2: only interactions listed multiple times with different sources
 
 @author: Eric Arezza
 Last Updated: Nov 7 2020
