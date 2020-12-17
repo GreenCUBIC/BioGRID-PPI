@@ -6,9 +6,9 @@ Created on Wed Jun 24 23:56:42 2020
 Description:
     Collects positive protein interaction datasets from BioGRID files using 
     the UniProt database for mapping entrez gene IDs to protein IDs and sequences.
-    Options -f for applying filters to interactions.
-    Option -m for checking sources of each interaction, 0, 1, or 2.
-    Level 0: include all listed interactions (will remove redundancies)
+    Option -f for applying filters to interactions.
+    Option -c for checking confidence level of each interaction, 0, 1, or 2.
+    Level 0: include all listed interactions
     Level 1: only interactions listed multiple times
     Level 2: only interactions listed multiple times with different sources
 
@@ -86,14 +86,14 @@ THROUGHPUT_LEVELS=[
     'low throughput'
     ]
 
-describe_help = 'python get_biogrid_interactions.py path_to_files/ -m -f'
+describe_help = 'python get_biogrid_interactions.py path_to_files/ -f -c 2'
 parser = argparse.ArgumentParser(description=describe_help)
 parser.add_argument('path', help='Path to BioGRID .txt files')
 parser.add_argument('-c', '--confidence_level', choices=(0, 1, 2), type=int, 
                     help='Confidence level of interactions,\
                     0 (default): include all interactions\
                     1: only interactions listed more than once\
-                    2: only interactions with multiple difference sources')
+                    2: only interactions with multiple different sources')
 parser.add_argument('-f', '--filters', action='store_true', help='Apply conservative filters')
 args = parser.parse_args()
 
