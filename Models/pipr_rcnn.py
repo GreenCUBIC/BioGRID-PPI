@@ -382,25 +382,26 @@ if __name__ == "__main__":
             prob_results = get_test_results(id2_aid, raw_data, test, class_labels, pred)
             np.savetxt('results_' + TEST_FILE.split('/')[-1].replace('.tsv', '_') + 'test_' + str(cv) + '.txt', prob_results, fmt='%s', delimiter='\n')
         
-        print("Fold", cv)
-        cv += 1
+            print("Fold", cv)
+            cv += 1
+            accuracy = num_hit / num_total
+            prec = num_true_pos / (num_true_pos + num_false_pos)
+            recall = num_true_pos / num_pos
+            spec = num_true_neg / (num_true_neg + num_false_neg)
+            f1 = 2. * prec * recall / (prec + recall)
+            mcc = (num_true_pos * num_true_neg - num_false_pos * num_false_neg) / (((num_true_pos + num_true_neg) * (num_true_pos + num_false_neg) * (num_false_pos + num_true_neg) * (num_false_pos + num_false_neg)) ** 0.5)
+            print (accuracy, prec, recall, spec, f1, mcc)
+    
+    if CROSS_VALIDATE:
         accuracy = num_hit / num_total
         prec = num_true_pos / (num_true_pos + num_false_pos)
         recall = num_true_pos / num_pos
         spec = num_true_neg / (num_true_neg + num_false_neg)
         f1 = 2. * prec * recall / (prec + recall)
-        mcc = (num_true_pos * num_true_neg - num_false_pos * num_false_neg) / (((num_true_pos + num_true_neg) * (num_true_pos + num_false_neg) * (num_false_pos + num_true_neg) * (num_false_pos + num_false_neg)) ** 0.5)
-        print (accuracy, prec, recall, spec, f1, mcc)
+        mcc = (num_true_pos * num_true_neg - num_false_pos * num_false_neg) / ((num_true_pos + num_true_neg) * (num_true_pos + num_false_neg) * (num_false_pos + num_true_neg) * (num_false_pos + num_false_neg)) ** 0.5
+        print (accuracy, prec, recall, f1)
     
-    accuracy = num_hit / num_total
-    prec = num_true_pos / (num_true_pos + num_false_pos)
-    recall = num_true_pos / num_pos
-    spec = num_true_neg / (num_true_neg + num_false_neg)
-    f1 = 2. * prec * recall / (prec + recall)
-    mcc = (num_true_pos * num_true_neg - num_false_pos * num_false_neg) / ((num_true_pos + num_true_neg) * (num_true_pos + num_false_neg) * (num_false_pos + num_true_neg) * (num_false_pos + num_false_neg)) ** 0.5
-    print (accuracy, prec, recall, f1)
-
-
-    # Write results to file
-    with open(rst_file, 'w') as fp:
-        fp.write('acc=' + str(accuracy) + '\tprec=' + str(prec) + '\trecall=' + str(recall) + '\tspec=' + str(spec) + '\tf1=' + str(f1) + '\tmcc=' + str(mcc))
+    
+        # Write results to file
+        with open(rst_file, 'w') as fp:
+            fp.write('acc=' + str(accuracy) + '\tprec=' + str(prec) + '\trecall=' + str(recall) + '\tspec=' + str(spec) + '\tf1=' + str(f1) + '\tmcc=' + str(mcc))

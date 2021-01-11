@@ -226,63 +226,98 @@ def get_dataset(wv,  maxlen,size, files, data='train'):
     if path[-1] != '/':
         path += '/'
     
-    for f in files:
-        if 'positive' in f.lower() or '_pos_' in f.lower():
+    if not CROSS_VALIDATE and data != 'train':
+        for f in files:
             if 'proteina' in f.lower() or 'protein_a' in f.lower():
                 file_1 = path + f
             if 'proteinb' in f.lower() or 'protein_b' in f.lower():
                 file_2 = path + f
-        if 'negative' in f.lower() or '_neg_' in f.lower():
-            if 'proteina' in f.lower() or 'protein_a' in f.lower():
-                file_3 = path + f
-            if 'proteinb' in f.lower() or 'protein_b' in f.lower():
-                file_4 = path + f
-
-    # positive seq protein A
-    pos_seq_protein_A = read_Data(file_1)
-    pos_seq_protein_B = read_Data(file_2)
-    neg_seq_protein_A = read_Data(file_3)
-    neg_seq_protein_B = read_Data(file_4)
-    # put pos and neg together
-    pos_neg_seq_protein_A = copy.deepcopy(pos_seq_protein_A)   
-    pos_neg_seq_protein_A.extend(neg_seq_protein_A)
-    pos_neg_seq_protein_B = copy.deepcopy(pos_seq_protein_B)   
-    pos_neg_seq_protein_B.extend(neg_seq_protein_B)
+                
+        seq_protein_A = read_Data(file_1)
+        seq_protein_B = read_Data(file_2)
+        # Sequence stats
+        seq = []
+        seq.extend(seq_protein_A)
+        seq.extend(seq_protein_B)
+        max_min_avg_length(seq)
+        # token
+        token_seq_protein_A = token(seq_protein_A)
+        token_seq_protein_B = token(seq_protein_B)
+        # padding
+        tokened_token_seq_protein_A = padding_J(token_seq_protein_A, maxlen)
+        tokened_token_seq_protein_B = padding_J(token_seq_protein_B, maxlen)
+        # protein reprsentation
+        feature_protein_A  = protein_representation(wv, tokened_token_seq_protein_A, maxlen,size)
+        feature_protein_B  = protein_representation(wv, tokened_token_seq_protein_B, maxlen,size)
+        feature_protein_AB = np.hstack((np.array(feature_protein_A), np.array(feature_protein_B)))
+        #  create label
+        label = np.ones(len(feature_protein_A))
+        label[len(feature_protein_AB)//2:] = 0
+        # Get protein pairs by protein ID
+        pairs = []
+        protein_A = read_proteinData(file_1)
+        protein_B = read_proteinData(file_2)
+        for p in range(0, len(protein_A)):
+            pairs.append([protein_A[p], protein_B[p]])
+        
+    else:
+        for f in files:
+            if 'positive' in f.lower() or '_pos_' in f.lower():
+                if 'proteina' in f.lower() or 'protein_a' in f.lower():
+                    file_1 = path + f
+                if 'proteinb' in f.lower() or 'protein_b' in f.lower():
+                    file_2 = path + f
+            if 'negative' in f.lower() or '_neg_' in f.lower():
+                if 'proteina' in f.lower() or 'protein_a' in f.lower():
+                    file_3 = path + f
+                if 'proteinb' in f.lower() or 'protein_b' in f.lower():
+                    file_4 = path + f
     
-    # Sequence stats
-    seq = []
-    seq.extend(pos_neg_seq_protein_A)
-    seq.extend(pos_neg_seq_protein_B)
-    max_min_avg_length(seq)
-    
-    # token
-    token_pos_neg_seq_protein_A = token(pos_neg_seq_protein_A)
-    token_pos_neg_seq_protein_B = token(pos_neg_seq_protein_B)
-    # padding
-    tokened_token_pos_neg_seq_protein_A = padding_J(token_pos_neg_seq_protein_A, maxlen)
-    tokened_token_pos_neg_seq_protein_B = padding_J(token_pos_neg_seq_protein_B, maxlen)
-    # protein reprsentation
-    feature_protein_A  = protein_representation(wv, tokened_token_pos_neg_seq_protein_A, maxlen,size)
-    feature_protein_B  = protein_representation(wv, tokened_token_pos_neg_seq_protein_B, maxlen,size)
-    feature_protein_AB = np.hstack((np.array(feature_protein_A), np.array(feature_protein_B)))
-    #  create label
-    label = np.ones(len(feature_protein_A))
-    label[len(feature_protein_AB)//2:] = 0
-    
-    # Get protein pairs by protein ID
-    pairs = []
-    pos_protein_A = read_proteinData(file_1)
-    pos_protein_B = read_proteinData(file_2)
-    neg_protein_A = read_proteinData(file_3)
-    neg_protein_B = read_proteinData(file_4)
-    # put pos and neg pairs together
-    pos_neg_protein_A = copy.deepcopy(pos_protein_A)   
-    pos_neg_protein_A.extend(neg_protein_A)
-    pos_neg_protein_B = copy.deepcopy(pos_protein_B)   
-    pos_neg_protein_B.extend(neg_protein_B)
-    
-    for p in range(0, len(pos_neg_protein_A)):
-        pairs.append([pos_neg_protein_A[p], pos_neg_protein_B[p]])
+        # positive seq protein A
+        pos_seq_protein_A = read_Data(file_1)
+        pos_seq_protein_B = read_Data(file_2)
+        neg_seq_protein_A = read_Data(file_3)
+        neg_seq_protein_B = read_Data(file_4)
+        # put pos and neg together
+        pos_neg_seq_protein_A = copy.deepcopy(pos_seq_protein_A)   
+        pos_neg_seq_protein_A.extend(neg_seq_protein_A)
+        pos_neg_seq_protein_B = copy.deepcopy(pos_seq_protein_B)   
+        pos_neg_seq_protein_B.extend(neg_seq_protein_B)
+        
+        # Sequence stats
+        seq = []
+        seq.extend(pos_neg_seq_protein_A)
+        seq.extend(pos_neg_seq_protein_B)
+        max_min_avg_length(seq)
+        
+        # token
+        token_pos_neg_seq_protein_A = token(pos_neg_seq_protein_A)
+        token_pos_neg_seq_protein_B = token(pos_neg_seq_protein_B)
+        # padding
+        tokened_token_pos_neg_seq_protein_A = padding_J(token_pos_neg_seq_protein_A, maxlen)
+        tokened_token_pos_neg_seq_protein_B = padding_J(token_pos_neg_seq_protein_B, maxlen)
+        # protein reprsentation
+        feature_protein_A  = protein_representation(wv, tokened_token_pos_neg_seq_protein_A, maxlen,size)
+        feature_protein_B  = protein_representation(wv, tokened_token_pos_neg_seq_protein_B, maxlen,size)
+        feature_protein_AB = np.hstack((np.array(feature_protein_A), np.array(feature_protein_B)))
+        #  create label
+        label = np.ones(len(feature_protein_A))
+        label[len(feature_protein_AB)//2:] = 0
+        
+        # Get protein pairs by protein ID
+        pairs = []
+        pos_protein_A = read_proteinData(file_1)
+        pos_protein_B = read_proteinData(file_2)
+        neg_protein_A = read_proteinData(file_3)
+        neg_protein_B = read_proteinData(file_4)
+        # put pos and neg pairs together
+        pos_neg_protein_A = copy.deepcopy(pos_protein_A)   
+        pos_neg_protein_A.extend(neg_protein_A)
+        pos_neg_protein_B = copy.deepcopy(pos_protein_B)   
+        pos_neg_protein_B.extend(neg_protein_B)
+        
+        for p in range(0, len(pos_neg_protein_A)):
+            pairs.append([pos_neg_protein_A[p], pos_neg_protein_B[p]])
    
     return pairs, feature_protein_AB, label
     
@@ -396,7 +431,7 @@ if __name__ == "__main__":
         print('Using training files:\n', train_files)
         test_files = os.listdir(path=TEST_PATH)
         print('Using testing files:\n', test_files)
-        if len(train_files) < 4 or len(test_files) < 4:
+        if len(train_files) < 4 or len(test_files) < 2:
             print("Check positive/negative proteinA/B files...")
             exit()
     except Exception as e:
