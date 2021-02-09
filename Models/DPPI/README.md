@@ -1,5 +1,5 @@
-**[DeepFE-PPI](https://github.com/xal2019/DeepFE-PPI)**  
-Yao, Y., Du, X., Diao, Y., & Zhu, H. (2019). An integration of deep learning with feature embedding for protein-protein interaction prediction. PeerJ, 7, e7126. https://doi.org/10.7717/peerj.7126  
+**[DPPI](https://github.com/hashemifar/DPPI)**  
+Hashemifar S, Neyshabur B, Khan AA, Xu J. Predicting protein-protein interactions through sequence-based deep learning. Bioinformatics. 2018 Sep 1;34(17):i802-i810. doi: 10.1093/bioinformatics/bty573. PMID: 30423091; PMCID: PMC6129267. 
  
 ___
 ## Usage:  
@@ -7,17 +7,24 @@ ___
 e.g.  
 > **th dppi.lua -train dataTrain -test dataTest -device 1**  
 
-1. First arg supplies directory to training data, second arg supplies directory to test data  
-
-2. Each directory should contain .fasta files named with 'ProteinA' or 'ProteinB' and 'positive' or 'negative':  
+- First arg supplies name for training data, second arg supplies name for test data  
+- Each dataset should contain the following using the same name  
 e.g.  
-> ls dataTrain/  
-> negative_ProteinA.fasta  positive_ProteinA.fasta negative_ProteinB.fasta  positive_ProteinB.fasta  
+1. A **dataTrain.node** file containing a list of all protein IDs  
+> PROTEIN1  
+> PROTEIN2  
+> PROTEIN3  
+> ...  
+2. A **dataTrain.csv** file containing the interactions with labels  
+> PROTEIN1,PROTEIN2,1  
+> PROTEIN1,PROTEIN1,1  
+> PROTEIN3,PROTEIN2,1  
+> PROTEIN1,PROTEIN3,0  
+> PROTEIN2,PROTEIN2,0  
+> ...  
+3. A  **dataTrain/** directory containing files named as the protein IDs found in the .node file without any extension.
+Each file's contents contain the PSSM results table of a BLAST search for that protein against a database
 
-These are formatted such that the .fasta lines of protein IDs and sequences line up one-to-one with protein As and protein Bs  
-e.g.  
-
-Therefore, PROTEINA1 and PROTEINB1 are a positive interaction, PROTEINA2 and PROTEINB2 are positive, etc...thus, the number of lines for each A - B file must be equal.  
 
 <i>Note 1: if train data and test data args are the same, a 5-fold cross-validation will **NOT** be performed on the provided data.</i> 
 
