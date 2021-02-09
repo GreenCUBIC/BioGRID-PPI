@@ -7,3 +7,5 @@ do
 	rm dataTrain/${p}_output_file
 	rm dataTrain/${p}
 done
+cd dataTrain/
+find . -depth -name "*.txt" -exec sh -c 'f="{}"; mv -- "$f" "${f%.txt}"' \;
