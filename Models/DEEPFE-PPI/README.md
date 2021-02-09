@@ -13,16 +13,18 @@ e.g.
 e.g.  
 > ls dataTrain/  
 > negative_ProteinA.fasta  positive_ProteinA.fasta negative_ProteinB.fasta  positive_ProteinB.fasta  
+
 These are formatted such that the .fasta lines of protein IDs and sequences line up one-to-one with protein As and protein Bs  
 e.g.  
-> positive_ProteinA.fasta  
+> head positive_ProteinA.fasta  
 > \>PROTEINA1  
 > SEQUENCEA1  
 > \>PROTEINA2  
 > SEQUENCEA2  
 > \>PROTEINA3  
 > SEQUENCEA3  
-> positive_ProteinB.fasta  
+
+> head positive_ProteinB.fasta  
 > \>PROTEINB1  
 > SEQUENCEB1  
 > \>PROTEINB2  
