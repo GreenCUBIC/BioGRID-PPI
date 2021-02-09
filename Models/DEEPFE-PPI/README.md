@@ -1,29 +1,42 @@
-**[PIPR](https://github.com/muhaochen/seq_ppi)**  
-Muhao Chen, Chelsea J -T Ju, Guangyu Zhou, Xuelu Chen, Tianran Zhang, Kai-Wei Chang, Carlo Zaniolo, Wei Wang, Multifaceted protein–protein interaction prediction based on Siamese residual RCNN, Bioinformatics, Volume 35, Issue 14, July 2019, Pages i305–i314, https://doi.org/10.1093/bioinformatics/btz328  
+**[DeepFE-PPI](https://github.com/xal2019/DeepFE-PPI)**  
+Yao, Y., Du, X., Diao, Y., & Zhu, H. (2019). An integration of deep learning with feature embedding for protein-protein interaction prediction. PeerJ, 7, e7126. https://doi.org/10.7717/peerj.7126  
+ 
 ___
 ## Usage:  
 
 e.g.  
-> **CUDA_VISIBLE_DEVICES=0 python pipr_rcnn.py all_sequences.fasta dataTrain.tsv dataTest.tsv**  
+> **python deepfe_res2vec.py dataTrain/ dataTest/**  
 
-1. Sequences file must contain all protein IDs and sequences from train and test data in .tsv format, 
-eg:  
-> PROTEINA  SEQUENCEASLSFPVTSSMVSSTSSYSSFLFLLVSGPLNHNISPFVFFH  
-> PROTEINB	TQMTSEQUENCEBPAPKISYKFVRSLVREIAGLSPYKRLGSFTRAKAKVERH  
-> PROTEINC	DLATKINEKPSEQUENCECTVVNDYEAAVLSKLERAAPK  
+1. First arg supplies directory to training data, second arg supplies directory to test data  
+Each directory should contain .fasta files named with 'ProteinA' or 'ProteinB' and 'positive' or 'negative':  
+e.g.  
+> ls dataTrain/  
+> negative_ProteinA.fasta  positive_ProteinA.fasta negative_ProteinB.fasta  positive_ProteinB.fasta  
+These are formatted such that the .fasta lines of protein IDs and sequences line up one-to-one with protein As and protein Bs  
+e.g.  
+> positive_ProteinA.fasta  
+> \>PROTEINA1  
+> SEQUENCEA1  
+> \>PROTEINA2  
+> SEQUENCEA2  
+> \>PROTEINA3  
+> SEQUENCEA3  
+> positive_ProteinB.fasta  
+> \>PROTEINB1  
+> SEQUENCEB1  
+> \>PROTEINB2  
+> SEQUENCEB2  
+> \>PROTEINB3  
+> SEQUENCEB3  
 
-2. Train data must contain protein IDs and labels (1=interacts, 0=does not interact) and be in .tsv with a header, 
-eg:  
-> v1	v2	label  
-> PROTEINA	PROTEINA	1  
-> PROTEINA	PROTEINB	1  
-> PROTEINB	PROTEINC	1  
-> PROTEINX	PROTEINA	0  
-> PROTEINY	PROTEINB	0  
-> PROTEINA	PROTEINZ	0  
+Therefore, PROTEINA1 and PROTEINB1 are a positive interaction, PROTEINA2 and PROTEINB2 are positive, etc...thus, the number of lines for each A - B file must be equal.  
 
-Test data must be in the same format as train data.  
-
-<i>Note 1: if train data and test data args are the same, a 5-fold cross-validation will be performed on the provided data.</i>  
-<i>Note 2: Make sure embeddings/ is in the same directory as pipr_rcnn.py</i>  
-<i>Note 3: -c or --cpu option will not run the model</i>  
+### Requirements:  
+python3.5.2  
+Numpy 1.14.1  
+Gensim 3.4.0  
+HDF5 and h5py  
+Pickle  
+Scikit-learn 0.19  
+Tensorflow 1.2.0  
+keras 1.2.0  
