@@ -39,7 +39,6 @@ e.g.
 - Then either run the get_profiles.sh provided  
 > ./get_profiles.sh Proteins/  
 > cd dataTrain/  
-> find . -depth -name "*.txt" -exec sh -c 'f="{}"; mv -- "$f" "${f%.txt}"' \;  
 or  
 perform the BLAST search otherwise  
 e.g.  
