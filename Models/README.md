@@ -19,6 +19,3 @@ Li, Y., Ilie, L. SPRINT: ultrafast protein-protein interaction prediction of the
 e.g.  
 bin/compute_HSPs -p sequences.fasta -h hsp_filename  
 bin/predict_interactions -p sequences.fasta -h HSP/hsp_filename -tr positive_interactions.tsv -e -o score_results.txt
-
-
-<i>Note: when dataTrain and dataTest are the same, 5-fold cross-validation will be performed on the given data, otherwise a single train/test split is executed.</i>
