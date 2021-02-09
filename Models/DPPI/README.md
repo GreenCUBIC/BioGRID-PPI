@@ -39,8 +39,9 @@ Each file's contents contain the PSSM results table of a [BLAST](https://blast.n
     > ...etc...  
     3. Then either run the get_profiles.sh provided  
     > ./get_profiles.sh  
-    or perform the BLAST search otherwise  
-    e.g.  
+   
+   or perform the BLAST search otherwise  
+   e.g.  
     > psiblast -db swissprot -evalue 0.001 -query Proteins/PROTEIN1 -out_ascii_pssm dataTrain/PROTEIN1 -out dataTrain/PROTEIN1-output_file -num_iterations 3  
     and format to obtain just the PSSM tables.  
     Repeat for test set.
