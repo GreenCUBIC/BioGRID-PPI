@@ -27,3 +27,9 @@ Test data must be in the same format as train data.
 <i>Note 1: if train data and test data args are the same, a 5-fold cross-validation will be performed on the provided data.</i>  
 <i>Note 2: Make sure embeddings/ is in the same directory as pipr_rcnn.py</i>  
 <i>Note 3: -c or --cpu option will not run the model</i>  
+
+### Requirements:
+python 2.7 or 3.6
+Tensorflow 1.7 (with GPU support)
+CuDNN
+Keras 2.2.4
