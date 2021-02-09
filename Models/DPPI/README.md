@@ -24,7 +24,7 @@ e.g.
 > ...  
 3. A  **dataTrain/** directory containing files named as the protein IDs found in the .node file without any extension.  
 Each file's contents contain the PSSM results table of a [BLAST](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download) search for that protein against a database  
-    >  
+      
     1. This can be obtained by first downloading the [BLAST+ executable](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) and a [BLAST database](https://ftp.ncbi.nlm.nih.gov/blast/db/) and unzipping it, then formatting the db  
      e.g.  
     > makeblastdb -in uniprot_sprot.fasta -out uniprot_sprot -dbtype prot -title swissprot   
@@ -39,12 +39,13 @@ Each file's contents contain the PSSM results table of a [BLAST](https://blast.n
     > ...etc...  
     3. Then either run the get_profiles.sh provided  
     > ./get_profiles.sh  
+    
    or perform the BLAST search otherwise  
    e.g.  
     > psiblast -db swissprot -evalue 0.001 -query Proteins/PROTEIN1 -out_ascii_pssm dataTrain/PROTEIN1 -out dataTrain/PROTEIN1-output_file -num_iterations 3  
+   
    and format to obtain just the PSSM tables.  
-   Repeat for test set.
-
+   Repeat for test set.  
 
 <i>Note: if train data and test data args are the same, a 5-fold cross-validation will **NOT** be performed on the provided data.</i>  
 
