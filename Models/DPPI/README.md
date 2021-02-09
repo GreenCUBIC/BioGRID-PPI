@@ -45,7 +45,8 @@ Each file's contents contain the PSSM results table of a [BLAST](https://blast.n
     > psiblast -db swissprot -evalue 0.001 -query Proteins/PROTEIN1 -out_ascii_pssm dataTrain/PROTEIN1 -out dataTrain/PROTEIN1-output_file -num_iterations 3  
    
    and format to obtain just the PSSM tables.  
-   Repeat for test set.  
+   
+Repeat for test set.  
 
 <i>Note: if train data and test data args are the same, a 5-fold cross-validation will **NOT** be performed on the provided data.</i>  
 
