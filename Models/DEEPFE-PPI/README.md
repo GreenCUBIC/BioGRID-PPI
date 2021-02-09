@@ -8,7 +8,8 @@ e.g.
 > **python deepfe_res2vec.py dataTrain/ dataTest/**  
 
 1. First arg supplies directory to training data, second arg supplies directory to test data  
-Each directory should contain .fasta files named with 'ProteinA' or 'ProteinB' and 'positive' or 'negative':  
+
+2. Each directory should contain .fasta files named with 'ProteinA' or 'ProteinB' and 'positive' or 'negative':  
 e.g.  
 > ls dataTrain/  
 > negative_ProteinA.fasta  positive_ProteinA.fasta negative_ProteinB.fasta  positive_ProteinB.fasta  
@@ -30,6 +31,8 @@ e.g.
 > SEQUENCEB3  
 
 Therefore, PROTEINA1 and PROTEINB1 are a positive interaction, PROTEINA2 and PROTEINB2 are positive, etc...thus, the number of lines for each A - B file must be equal.  
+
+<i>Note 1: if train data and test data args are the same, a 5-fold cross-validation will be performed on the provided data.</i> 
 
 ### Requirements:  
 python3.5.2  
