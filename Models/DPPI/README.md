@@ -23,32 +23,30 @@ e.g.
 > PROTEIN2,PROTEIN2,0  
 > ...  
 3. A  **dataTrain/** directory containing files named as the protein IDs found in the .node file without any extension.  
-Each file's contents contain the PSSM results table of a [BLAST](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download) search for that protein against a database.  
+Each file's contents contain the PSSM results table of a [BLAST](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download) search for that protein against a database  
+    >  
+    1. This can be obtained by first downloading the [BLAST+ executable](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) and a [BLAST database](https://ftp.ncbi.nlm.nih.gov/blast/db/) and unzipping it, then formatting the db  
+     e.g.  
+    > makeblastdb -in uniprot_sprot.fasta -out uniprot_sprot -dbtype prot -title swissprot   
+    2. Then make a separate directory named Proteins/ containing the .fasta file for each protein in dataTrain  
+    e.g.  
+    > head Proteins/PROTEIN1  
+    > \>PROTEIN1  
+    > SEQUENCE1  
+    > head Proteins/PROTEIN2  
+    > \>PROTEIN2  
+    > SEQUENCE2  
+    > ...etc...  
+    3. Then either run the get_profiles.sh provided  
+    > ./get_profiles.sh  
+    or perform the BLAST search otherwise  
+    e.g.  
+    > psiblast -db swissprot -evalue 0.001 -query Proteins/PROTEIN1 -out_ascii_pssm dataTrain/PROTEIN1 -out dataTrain/PROTEIN1-output_file -num_iterations 3  
+    and format to obtain just the PSSM tables.  
+    Repeat for test set.
 
-This can be obtained by first downloading the [BLAST+ executable](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) and a [BLAST database](https://ftp.ncbi.nlm.nih.gov/blast/db/) and unzipping it, then formatting the db  
- e.g.  
-> makeblastdb -in uniprot_sprot.fasta -out uniprot_sprot -dbtype prot -title swissprot   
-- Then make a separate directory named Proteins/ containing the .fasta file for each protein in dataTrain  
-e.g.  
-> head Proteins/PROTEIN1  
-> \>PROTEIN1  
-> SEQUENCE1  
-> head Proteins/PROTEIN2  
-> \>PROTEIN2  
-> SEQUENCE2  
-> ...etc...  
-- Then either run the get_profiles.sh provided  
-> ./get_profiles.sh  
 
-or perform the BLAST search otherwise  
-e.g.  
-> psiblast -db swissprot -evalue 0.001 -query Proteins/PROTEIN1 -out_ascii_pssm dataTrain/PROTEIN1 -out dataTrain/PROTEIN1-output_file -num_iterations 3  
-
-and format to obtain just the PSSM tables.  
-
-Repeat for test set.
-
-<i>Note 1: if train data and test data args are the same, a 5-fold cross-validation will **NOT** be performed on the provided data.</i>  
+<i>Note: if train data and test data args are the same, a 5-fold cross-validation will **NOT** be performed on the provided data.</i>  
 
 ### Requirements:  
 lua  
