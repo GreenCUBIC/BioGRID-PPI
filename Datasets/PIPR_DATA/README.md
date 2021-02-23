@@ -1,1 +1,1 @@
-Datasets formatted for pipr
+Datasets formatted for pipr_rcnn.py
