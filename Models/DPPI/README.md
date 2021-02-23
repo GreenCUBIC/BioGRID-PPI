@@ -54,7 +54,7 @@ Each file's contents contain the PSSM results table of a [BLAST](https://blast.n
    
 Repeat for test set.  
 
-<i>Note: if train data and test data args are the same, a 5-fold cross-validation will **NOT** be performed on the provided data.</i>  
+<i>Note: if train data and test data args are the same, a (default) 5-fold cross-validation will be performed on the provided data.</i>  
 
 ### Requirements:  
 lua  
