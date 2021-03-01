@@ -380,7 +380,7 @@ if __name__ == "__main__":
             merge_model.compile(optimizer=rms, loss='categorical_crossentropy', metrics=['accuracy'])
             merge_model.fit([seq_tensor[seq_index1[train]], seq_tensor[seq_index2[train]]], class_labels[train], batch_size=batch_size1, epochs=n_epochs)
             
-        if args.saveModel:
+        if not CROSS_VALIDATE and args.saveModel:
             pickle.dump(merge_model, open(os.getcwd()+'/Models/' + TRAIN_FILE.split('/')[-1].replace('.tsv', '_PIPR.model'), 'wb'))
             
         pred = merge_model.predict([seq_tensor[seq_index1[test]], seq_tensor[seq_index2[test]]])
