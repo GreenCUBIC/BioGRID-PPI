@@ -34,6 +34,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import tensorflow as tf
 import keras.backend.tensorflow_backend as KTF
 import numpy as np
+import pickle
 
 from datetime import datetime
 from embeddings.seq2tensor import s2t
@@ -62,16 +63,13 @@ parser.add_argument('-m', '--mbedding', help='Embedding (int), 0=embeddings/defa
                     type=int, nargs=1, required=False, choices=[0,1,2,3])
 parser.add_argument('-d', '--dimensions', help='Hidden dimensions (int)', type=int, nargs=1, required=False)
 parser.add_argument('-e', '--epochs', help='Epochs (int)', type=int, nargs=1, required=False)
+parser.add_argument('-save', '--saveModel', help='Save model', action='store_true', default=False)
+parser.add_argument('-load','--loadModel', help='Path to pre-trained model', default='', type=str, nargs=1, required=False)
 parser.add_argument('-c', '--cpu', dest='cpu', help='Use only CPU', action='store_true', default=False)
 #parser.set_defaults(results=os.getcwd()+'/results/'+datetime.now().strftime("%d-%m-%Y/")+datetime.now().strftime("%H-%M-%S-results.txt"),
 #                    label_index=2, mbedding=0, dimensions=25, epochs=50)
 args = parser.parse_args()
 # Set defaults for command-line arguments
-if args.results is None:
-    #rst_file = os.getcwd()+'/results/'+datetime.now().strftime("%d-%m-%Y/")+datetime.now().strftime("%H-%M-%S-results.txt")    
-    rst_file = os.getcwd()+'/results_'+datetime.now().strftime("%d-%m-%Y_")+datetime.now().strftime("%H-%M-%S.txt")
-else:
-    rst_file = args.results
 if args.label_index is None:
     label_index = 2
 else:
@@ -88,12 +86,22 @@ if args.epochs is None:
     n_epochs = 100
 else:
     n_epochs = args.epochs[0]
+if args.loadModel is '':
+    pretrained = None
+else:
+    pretrained = args.loadModel[0]
 
 TRAIN_FILE = args.train[0]
 TEST_FILE = args.test[0]
 CROSS_VALIDATE = False
 if TRAIN_FILE == TEST_FILE:
     CROSS_VALIDATE = True
+
+if args.results is None:
+    #rst_file = os.getcwd()+'/Results/results_'+datetime.now().strftime("%d-%m-%Y_")+datetime.now().strftime("%H-%M-%S.txt")    
+    rst_file = os.getcwd()+'/Results/results_' + TRAIN_FILE.split('/')[-1].replace('.tsv', '_') + TEST_FILE.split('/')[-1].replace('.tsv', '.txt')
+else:
+    rst_file = args.results
 
 ID2SEQ_FILE = args.sequences[0]
 
@@ -102,14 +110,14 @@ SEQ2T = s2t(EMB_FILES[use_emb])
 
 print("\n---Using the following---\nSequences File: {}\nTraining File: {}\nTesting File: {}\nResults File: {}".format(ID2SEQ_FILE, TRAIN_FILE, TEST_FILE, rst_file))
 print("Label index: {}\nEmbedding: {} - {}\nHidden Dimensions: {}\nEpochs: {}\n".format(label_index, use_emb, EMB_FILES[use_emb], hidden_dim, n_epochs))
-
+print('Save model: {}\nLoad model: {}'.format(args.saveModel, pretrained))
 DIM = SEQ2T.dim
 SEQ_SIZE = 2000
 CLASS_MAP = {'0':1,'1':0}
 print("Class map:", CLASS_MAP)
 
 def get_session(gpu_fraction=0.5):
-    '''Assume that you have 6GB of GPU memory and want to allocate ~2GB'''
+    '''Assume that you have 6GB of GPU memory and want to allocate ~3GB'''
 
     num_threads = os.environ.get('OMP_NUM_THREADS')
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_fraction)
@@ -343,18 +351,35 @@ if __name__ == "__main__":
     if args.cpu:
         print("\nExiting before building model.")
         exit()
-
+        
+    os.mkdir(os.getcwd()+'/Models/')
+    os.mkdir(os.getcwd()+'/Results/')
+    avg_accuracy = []
+    avg_precision = []
+    avg_recall = []
+    avg_specificity = []
+    avg_f1 = []
+    avg_mcc = []
+        
     # Train and test model
     num_hit = num_total = num_pos = num_true_pos = num_false_pos = num_true_neg = num_false_neg = 0.
     batch_size1 = 256
     cv = 0
     for train, test in train_test:
-        merge_model = None
-        merge_model = build_model()
-        adam = Adam(lr=0.001, amsgrad=True, epsilon=1e-6)
-        rms = RMSprop(lr=0.001)
-        merge_model.compile(optimizer=rms, loss='categorical_crossentropy', metrics=['accuracy'])
-        merge_model.fit([seq_tensor[seq_index1[train]], seq_tensor[seq_index2[train]]], class_labels[train], batch_size=batch_size1, epochs=n_epochs)
+        
+        if not CROSS_VALIDATE and pretrained != None:
+            merge_model = pickle.load(open(pretrained, 'rb'))
+        else:
+            merge_model = None
+            merge_model = build_model()
+            adam = Adam(lr=0.001, amsgrad=True, epsilon=1e-6)
+            rms = RMSprop(lr=0.001)
+            merge_model.compile(optimizer=rms, loss='categorical_crossentropy', metrics=['accuracy'])
+            merge_model.fit([seq_tensor[seq_index1[train]], seq_tensor[seq_index2[train]]], class_labels[train], batch_size=batch_size1, epochs=n_epochs)
+            
+        if args.saveModel:
+            pickle.dump(merge_model, open(os.getcwd()+'/Models/' + TRAIN_FILE.split('/')[-1].replace('.tsv', '_PIPR.model'), 'wb'))
+            
         pred = merge_model.predict([seq_tensor[seq_index1[test]], seq_tensor[seq_index2[test]]])
         
         for i in range(len(class_labels[test])):        
@@ -376,32 +401,29 @@ if __name__ == "__main__":
         if not CROSS_VALIDATE:
             # Save interaction probability results
             prob_results = get_test_results(id2_aid_test, raw_data, test, class_labels, pred)
-            np.savetxt('results_' + str(cv) + '_' + TEST_FILE.split('/')[-1].replace('.tsv', '.txt'), prob_results, fmt='%s', delimiter='\n')
+            np.savetxt(os.getcwd()+'/Results/predictions_' + str(cv) + '_' + TEST_FILE.split('/')[-1].replace('.tsv', '.txt'), prob_results, fmt='%s', delimiter='\n')
         else:
             # Save interaction probability results
             prob_results = get_test_results(id2_aid, raw_data, test, class_labels, pred)
-            np.savetxt('results_' + TEST_FILE.split('/')[-1].replace('.tsv', '_') + 'test_' + str(cv) + '.txt', prob_results, fmt='%s', delimiter='\n')
+            np.savetxt(os.getcwd()+'/Results/predictions_' + TEST_FILE.split('/')[-1].replace('.tsv', '_') + 'test_' + str(cv) + '.txt', prob_results, fmt='%s', delimiter='\n')
         
-            print("Fold", cv)
-            cv += 1
-            accuracy = num_hit / num_total
-            prec = num_true_pos / (num_true_pos + num_false_pos)
-            recall = num_true_pos / num_pos
-            spec = num_true_neg / (num_true_neg + num_false_neg)
-            f1 = 2. * prec * recall / (prec + recall)
-            mcc = (num_true_pos * num_true_neg - num_false_pos * num_false_neg) / (((num_true_pos + num_true_neg) * (num_true_pos + num_false_neg) * (num_false_pos + num_true_neg) * (num_false_pos + num_false_neg)) ** 0.5)
-            print (accuracy, prec, recall, spec, f1, mcc)
-    
-    if CROSS_VALIDATE:
+        print("Fold", cv)
+        cv += 1
         accuracy = num_hit / num_total
         prec = num_true_pos / (num_true_pos + num_false_pos)
         recall = num_true_pos / num_pos
         spec = num_true_neg / (num_true_neg + num_false_neg)
         f1 = 2. * prec * recall / (prec + recall)
-        mcc = (num_true_pos * num_true_neg - num_false_pos * num_false_neg) / ((num_true_pos + num_true_neg) * (num_true_pos + num_false_neg) * (num_false_pos + num_true_neg) * (num_false_pos + num_false_neg)) ** 0.5
-        print (accuracy, prec, recall, f1)
+        mcc = (num_true_pos * num_true_neg - num_false_pos * num_false_neg) / (((num_true_pos + num_true_neg) * (num_true_pos + num_false_neg) * (num_false_pos + num_true_neg) * (num_false_pos + num_false_neg)) ** 0.5)
+        print (accuracy, prec, recall, spec, f1, mcc)
+        
+        avg_accuracy.append(accuracy)
+        avg_precision.append(prec)
+        avg_recall.append(recall)
+        avg_specificity.append(spec)
+        avg_f1.append(f1)
+        avg_mcc.append(mcc)
     
-    
-        # Write results to file
-        with open(rst_file, 'w') as fp:
-            fp.write('acc=' + str(accuracy) + '\tprec=' + str(prec) + '\trecall=' + str(recall) + '\tspec=' + str(spec) + '\tf1=' + str(f1) + '\tmcc=' + str(mcc))
+    # Write results to file
+    with open(rst_file, 'w') as fp:
+        fp.write('acc=' + str(np.mean(avg_accuracy)) + '\nprec=' + str(np.mean(avg_precision)) + '\nrecall=' + str(np.mean(avg_recall)) + '\nspec=' + str(np.mean(avg_specificity)) + '\nf1=' + str(np.mean(avg_f1)) + '\nmcc=' + str(np.mean(avg_mcc)) + '\n')
