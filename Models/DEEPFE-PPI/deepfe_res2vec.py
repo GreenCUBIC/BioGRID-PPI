@@ -444,8 +444,10 @@ if __name__ == "__main__":
     except Exception as e:
         print(e, "\nPlease provide path to files, for example: 'python deepfe_res2vec.py train/ test/'")
         exit()
-    os.mkdir(os.getcwd()+'/Models/')
-    os.mkdir(os.getcwd()+'/Results/')
+    if not os.path.exists(os.getcwd()+'/Models/'):
+        os.mkdir(os.getcwd()+'/Models/')
+    if not os.path.exists(os.getcwd()+'/Results/'):
+        os.mkdir(os.getcwd()+'/Results/')
     seq_files = []
     if TRAIN_PATH[-1] != '/':
         path = TRAIN_PATH + '/'
