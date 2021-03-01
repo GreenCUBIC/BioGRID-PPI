@@ -47,6 +47,7 @@ cmd:text('Options:')
 cmd:option('-device', 1, 'set GPU Device')
 cmd:option('-string', os.date("%d-%m-%Y"), 'suffix to log files')
 cmd:option('-saveModel', false, 'saves the model if true')
+cmd:option('-loadModel', '', 'load pre-trained model')
 cmd:option('-seed', 1, 'manual seed')
 cmd:option('-dataDir', './', 'directory path for data files')
 
@@ -858,6 +859,7 @@ print('==> raw data to representation processing completed')
 --------------- CREATE CROP ----------------------------
 
 paths.mkdir(opt.dataDir..'Results/')
+paths.mkdir(opt.dataDir..'Model/')
 if opt.crop then
   if opt.train == opt.test then
   --================== START CROSS-VALIDATION =====================
@@ -943,12 +945,14 @@ if opt.crop then
   else
   --================== START SINGLE TRAIN/TEST =====================
     ------------- LOAD TRAIN/TEST DATA ---------------------------
+    if opt.loadModel != '' then
     print ('==> loading data '..opt.train)
     pNumber = torch.load( opt.dataDir..opt.train..'_number_crop_'..opt.cropLength..'.t7' )
     trainData = pair_crop_load( opt.dataDir..opt.train..'_labels.dat',10, pNumber )
     print(opt.train..' training '..#trainData.org_data..' interactions')
     train_feature = torch.load( opt.dataDir..opt.train..'_profile_crop_'..opt.cropLength..'.t7' )
     num_features = train_feature[ trainData.data[1][1] ]:size(2)
+    end
     num_outputs = 1
     k = 1
     print ('==> loading data '..opt.test)
@@ -959,21 +963,27 @@ if opt.crop then
     shuffle = torch.range(1, testData.size)
     test_inputs, test_targets, test_weights = pair_seq_load_batch(testData, shuffle, test_feature)
   ----------- BUILD AND TRAIN MODEL -----------------------------
-    model = build_model()
-    ConvInit('cudnn.SpatialConvolution')
-    ConvInit('nn.SpatialConvolution')
-    BNInit('fbnn.SpatialBatchNormalization')
-    for k,v in pairs(model:findModules('nn.Linear')) do
-      v.bias:zero()
-    end
-    criterion = nn.BCECriterion()
-    model:cuda()
-    criterion:cuda()
-
-    print('########## TRAINING ##########')
-    for i=1, opt.epochs do
-      train( i, trainData )
-    end
+    if opt.loadModel == '' then
+      model = build_model()
+      ConvInit('cudnn.SpatialConvolution')
+      ConvInit('nn.SpatialConvolution')
+      BNInit('fbnn.SpatialBatchNormalization')
+      for k,v in pairs(model:findModules('nn.Linear')) do
+        v.bias:zero()
+      end
+      criterion = nn.BCECriterion()
+      model:cuda()
+      criterion:cuda()
+    
+      print('########## TRAINING ##########')
+      for i=1, opt.epochs do
+        train( i, trainData )
+      end
+      if opt.saveModel then
+        torch.save( dataDir..'/Model/'..saveName..'DPPI_model.t7', model )
+      end
+    else
+      model = torch.load( dataDir..'/Model/'..opt.loadModel )
   --------------- TEST AND EVALUATE -----------------------------
     print('########## TESTING - ##########')
     val_scores, val_labels = make_prediction(testData, test_feature, k)
