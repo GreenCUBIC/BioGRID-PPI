@@ -38,7 +38,7 @@ __all__ = ['averagenum',
 
 import os, argparse
 from time import time
-from keras.models import Sequential
+from keras.models import Sequential, load_model
 from keras.layers.normalization import BatchNormalization
 from sklearn.metrics import roc_curve, auc, roc_auc_score, average_precision_score
 import numpy as np
@@ -69,6 +69,8 @@ parser.add_argument('-l', '--length', help='Max length (int)', type=int, nargs=1
 parser.add_argument('-b', '--batch', help='Batch size (int)', type=int, nargs=1, required=False)
 parser.add_argument('-e', '--epochs', help='Epochs (int)', type=int, nargs=1, required=False)
 parser.add_argument('-r','--results', help='Path to file to store results', type=str, nargs=1, required=False)
+parser.add_argument('-save', '--saveModel', help='Save model', action='store_true', default=False)
+parser.add_argument('-load','--loadModel', help='Path to pre-trained model', default='', type=str, nargs=1, required=False)
 args = parser.parse_args()
 
 if args.window is None:
@@ -91,21 +93,26 @@ if args.length is None:
     maxlen = 850
 else:
     maxlen = args.length[0]
-if args.results is None:
-    #rst_file = os.getcwd()+'/results/'+datetime.now().strftime("%d-%m-%Y/")+datetime.now().strftime("%H-%M-%S-results.txt")    
-    rst_file = os.getcwd()+'/results_'+datetime.now().strftime("%d-%m-%Y_")+datetime.now().strftime("%H-%M-%S.txt")
+if args.loadModel is '':
+    pretrained = None
 else:
-    rst_file = args.results
+    pretrained = args.loadModel[0]
 
 TRAIN_PATH = args.train[0]
 TEST_PATH = args.test[0]
 CROSS_VALIDATE = False
 if TRAIN_PATH == TEST_PATH:
     CROSS_VALIDATE = True
+    
+if args.results is None:
+    #rst_file = os.getcwd()+'/Results/results_'+datetime.now().strftime("%d-%m-%Y_")+datetime.now().strftime("%H-%M-%S.txt")    
+    rst_file = os.getcwd()+'/Results/results_' + TRAIN_PATH.split('/')[-1] + TEST_PATH.split('/')[-1] + '.txt'
+else:
+    rst_file = args.results
 
 print("\n---Using the following---\nTraining Files: {}\nTesting Files: {}".format(TRAIN_PATH, TEST_PATH))
 print("Size: {}\nWindow: {}\nLength: {}\nBatch: {}\nEpochs: {}\n".format(size, window, maxlen, batch_size, n_epochs))
-
+print('Save model: {}\nLoad model: {}'.format(args.saveModel, pretrained))
 def averagenum(num):
     nsum = 0
     for i in range(len(num)):
@@ -437,7 +444,8 @@ if __name__ == "__main__":
     except Exception as e:
         print(e, "\nPlease provide path to files, for example: 'python deepfe_res2vec.py train/ test/'")
         exit()
-    
+    os.mkdir(os.getcwd()+'/Models/')
+    os.mkdir(os.getcwd()+'/Results/')
     seq_files = []
     if TRAIN_PATH[-1] != '/':
         path = TRAIN_PATH + '/'
@@ -456,9 +464,24 @@ if __name__ == "__main__":
     t_start = time() 
     
     if not CROSS_VALIDATE:
-        # Process training data
-        raw_pairs_train, train_fea_protein_AB, train_label = get_dataset(model_wv.wv, maxlen, size, train_files, data='train')
-        Y_train = utils.to_categorical(train_label)
+        if pretrained != None:
+            h5_file = h5py.File(pretrained.replace('.model', '_train_data.h5'), 'r')
+            train_fea_protein_AB =  h5_file['trafind pipr_Yeast_DPPI/ -type f ! -name "*.txt"inset_x'][:]
+            train_label = h5_file['trainset_y'][:]
+            raw_pairs_train = [None]*len(train_fea_protein_AB)
+            h5_file.close()
+            print('dataset is loaded')
+            Y = utils.to_categorical(train_label)
+        else:
+            # Process training data
+            raw_pairs_train, train_fea_protein_AB, train_label = get_dataset(model_wv.wv, maxlen, size, train_files, data='train')
+            Y_train = utils.to_categorical(train_label)
+            if args.saveModel:
+                h5_file = h5py.File(os.getcwd() + 'Models/' + os.path.split(TRAIN_PATH)[0].split('/')[-1] + '_DEEPFE_train_data.h5','w')
+                h5_file.create_dataset('trainset_x', data = train_fea_protein_AB)
+                h5_file.create_dataset('trainset_y', data = train_label)
+                h5_file.create_dataset('raw_pairs_train', data = raw_pairs_train)
+                h5_file.close()
         # Process testing data
         raw_pairs_test, test_fea_protein_AB, test_label = get_dataset(model_wv.wv, maxlen, size, test_files, data='test')
         Y_test = utils.to_categorical(test_label)
@@ -476,42 +499,13 @@ if __name__ == "__main__":
         scaled_fea_protein_AB = scaler.transform(fea_protein_AB)
         Y = utils.to_categorical(train_label)
         train_test = get_crossvalidation_splits(scaled_fea_protein_AB, Y, nsplits=5)
-        '''
-        print('FEA_PROTEIN_AB:', len(fea_protein_AB))
-        print(fea_protein_AB)
-        print('TRAIN_LABEL:', len(train_label))
-        print(train_label)
-        print('Y:', len(Y))
-        print(Y)
-        print('TRAIN/TEST SPLIT:', len(train_test))
-        print(train_test)
-        print('SCALED_FEA_PROTEIN_AB:', len(scaled_fea_protein_AB))
-        print(scaled_fea_protein_AB)
-        fea_protein_AB = scaled_fea_protein_AB
-        '''
-        '''
-        # If using pre-trained
-        h5_file = h5py.File('dataset/11188/wv_swissProt_size_'+str(size)+'_window_'+str(window)+'_maxlen_'+str(maxlen)+'.h5','r')
-        h5_fea_protein_AB =  h5_file['trainset_x'][:]
-        h5_train_label = h5_file['trainset_y'][:]
-        h5_file.close()
-        print('dataset is loaded')
-        h5_Y = utils.to_categorical(train_label)
-        #h5_train_test = get_crossvalidation_splits(h5_fea_protein_AB, h5_train_label, nsplits=5)
-        print('\nH5_FEA_PROTEIN_AB:', len(h5_fea_protein_AB))
-        print(h5_fea_protein_AB)
-        print('H5_TRAIN_LABEL:', len(h5_train_label))
-        print(h5_train_label)
-        print('H5_Y:', len(h5_Y))
-        print(h5_Y)
-        #print('H5_TRAIN/TEST SPLIT:', len(h5_train_test))
-        #print(h5_train_test)
-        '''
-        
+    
+    os.mkdir(os.getcwd()+'Results/')
+    os.mkdir(os.getcwd()+'Models/')
     scores = []
     i = 0
     for (train_index, test_index) in train_test:
-
+        
         # Get features
         X_train_left = np.array(fea_protein_AB[train_index][:,0:sequence_len])
         X_train_right = np.array(fea_protein_AB[train_index][:,sequence_len:sequence_len*2])
@@ -522,15 +516,23 @@ if __name__ == "__main__":
         y_train = Y[train_index]
         y_test = Y[test_index]
         
-        # Build model
-        model =  merged_DBN(sequence_len)  
-        sgd = SGD(lr=0.01, momentum=0.9, decay=0.001)
-        model.compile(loss='categorical_crossentropy', optimizer=sgd,metrics=['precision'])
-        # feed data into model
-        hist = model.fit([X_train_left, X_train_right], y_train,
-                         batch_size = batch_size,
-                         nb_epoch = n_epochs,
-                         verbose = 1)
+        if pretrained == None:
+            # Build model
+            model =  merged_DBN(sequence_len)  
+            sgd = SGD(lr=0.01, momentum=0.9, decay=0.001)
+            model.compile(loss='categorical_crossentropy', optimizer=sgd,metrics=['precision'])
+            # feed data into model
+            hist = model.fit([X_train_left, X_train_right], y_train,
+                             batch_size = batch_size,
+                             nb_epoch = n_epochs,
+                             verbose = 1)
+        else:
+            print('Loading model:', pretrained)
+            model = load_model(pretrained)
+            
+        if not CROSS_VALIDATE and args.saveModel:
+            model.save(os.getcwd() + 'Models/' + os.path.split(TRAIN_PATH)[0].split('/')[-1] + '_DEEPFE.model')
+        
         # Make predictions
         predictions = model.predict([X_test_left, X_test_right]) 
         
@@ -538,11 +540,11 @@ if __name__ == "__main__":
         if not CROSS_VALIDATE:
             # Save interaction probability results
             prob_results = get_test_results(raw_pairs, test_index, predictions, Y)
-            np.savetxt('results_' + str(i) + '_' + os.path.split(TEST_PATH)[0].split('/')[-1] + '.txt', prob_results, fmt='%s', delimiter='\n')
+            np.savetxt('Results/predictions_' + str(i) + '_' + os.path.split(TEST_PATH)[0].split('/')[-1] + '.txt', prob_results, fmt='%s', delimiter='\n')
         else:
             # Save interaction probability results
             prob_results = get_test_results(raw_pairs, test_index, predictions, Y)
-            np.savetxt('results_' + os.path.split(TEST_PATH)[0].split('/')[-1] + '_test_' + str(i) + '.txt', prob_results, fmt='%s', delimiter='\n')
+            np.savetxt('Results/predictions_' + os.path.split(TEST_PATH)[0].split('/')[-1] + '_test_' + str(i) + '.txt', prob_results, fmt='%s', delimiter='\n')
 
         auc_test = roc_auc_score(y_test[:,1], predictions[:,1])
         pr_test = average_precision_score(y_test[:,1], predictions[:,1])
