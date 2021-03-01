@@ -300,7 +300,12 @@ if __name__ == "__main__":
     else:
         # Setup GPU
         KTF.set_session(get_session())
-    
+        
+    if not os.path.exists(os.getcwd()+'/Models/'):
+        os.mkdir(os.getcwd()+'/Models/')
+    if not os.path.exists(os.getcwd()+'/Results/'):
+        os.mkdir(os.getcwd()+'/Results/')
+        
     # Get protein sequences
     id2index = {}
     seqs = []
@@ -352,8 +357,6 @@ if __name__ == "__main__":
         print("\nExiting before building model.")
         exit()
         
-    os.mkdir(os.getcwd()+'/Models/')
-    os.mkdir(os.getcwd()+'/Results/')
     avg_accuracy = []
     avg_precision = []
     avg_recall = []
