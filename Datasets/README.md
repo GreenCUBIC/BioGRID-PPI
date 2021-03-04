@@ -1,5 +1,6 @@
 #### Datasets constructed from BioGRID-ORGANISM- Releases:
 - 4.2.192 (November 25, 2020)  
+- 4.3.195 (February 25, 2021)
 
 Datasets contain interactions with protein sequence homology reduction applied  
 - Proteins with >40% sequence identity have been excluded  
