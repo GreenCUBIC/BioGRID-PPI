@@ -479,7 +479,7 @@ if __name__ == "__main__":
             raw_pairs_train, train_fea_protein_AB, train_label = get_dataset(model_wv.wv, maxlen, size, train_files, data='train')
             Y_train = utils.to_categorical(train_label)
             if args.saveModel:
-                h5_file = h5py.File(os.getcwd() + 'Models/' + os.path.split(TRAIN_PATH)[0].split('/')[-1] + '_DEEPFE_train_data.h5','w')
+                h5_file = h5py.File(os.getcwd() + '/Models/' + os.path.split(TRAIN_PATH)[0].split('/')[-1] + '_DEEPFE_train_data.h5','w')
                 h5_file.create_dataset('trainset_x', data = train_fea_protein_AB)
                 h5_file.create_dataset('trainset_y', data = train_label)
                 h5_file.create_dataset('raw_pairs_train', data = raw_pairs_train)
@@ -502,8 +502,8 @@ if __name__ == "__main__":
         Y = utils.to_categorical(train_label)
         train_test = get_crossvalidation_splits(scaled_fea_protein_AB, Y, nsplits=5)
     
-    os.mkdir(os.getcwd()+'Results/')
-    os.mkdir(os.getcwd()+'Models/')
+    os.mkdir(os.getcwd()+'/Results/')
+    os.mkdir(os.getcwd()+'/Models/')
     scores = []
     i = 0
     for (train_index, test_index) in train_test:
@@ -533,7 +533,7 @@ if __name__ == "__main__":
             model = load_model(pretrained)
             
         if not CROSS_VALIDATE and args.saveModel:
-            model.save(os.getcwd() + 'Models/' + os.path.split(TRAIN_PATH)[0].split('/')[-1] + '_DEEPFE.model')
+            model.save(os.getcwd() + '/Models/' + os.path.split(TRAIN_PATH)[0].split('/')[-1] + '_DEEPFE.model')
         
         # Make predictions
         predictions = model.predict([X_test_left, X_test_right]) 
