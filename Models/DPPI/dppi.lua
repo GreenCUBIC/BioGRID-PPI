@@ -925,7 +925,7 @@ if opt.crop then
       avg_f1[k] = f1
       avg_mcc[k] = mcc
       print('Fold-'..k..' performance:')
-      print('accuracy = '.. accuracy..'\nprecision = '..precision..'\nrecall = '..recall..'\nspecificity = '..specificity..'\nf1 = '..f1..'\nmcc = '..mcc)
+      print('accuracy = '.. accuracy..'\nprecision = '..precision..'\nrecall = '..recall..'\nspecificity = '..specificity..'\nf1 = '..f1..'\nmcc = '..mcc..'\n')
     end
     
     avg_accuracy = torch.Tensor(avg_accuracy)
@@ -935,10 +935,10 @@ if opt.crop then
     avg_f1 = torch.Tensor(avg_f1)
     avg_mcc = torch.Tensor(avg_mcc)
     
-    performance = 'accuracy = '.. torch.mean(avg_accuracy)..'\nprecision = '..torch.mean(avg_precision)..'\nrecall = '..torch.mean(avg_recall)..'\nspecificity = '..torch.mean(avg_specificity)..'\nf1 = '..torch.mean(avg_f1)..'\nmcc = '..torch.mean(avg_mcc)
+    performance = 'accuracy = '.. torch.mean(avg_accuracy)..'\nprecision = '..torch.mean(avg_precision)..'\nrecall = '..torch.mean(avg_recall)..'\nspecificity = '..torch.mean(avg_specificity)..'\nf1 = '..torch.mean(avg_f1)..'\nmcc = '..torch.mean(avg_mcc)..'\n'
     print(performance)
     --write results to file
-    metrics = io.open(opt.dataDir..'Results/performance-'..saveName..'.txt', 'w')
+    metrics = io.open(opt.dataDir..'Results/results_'..saveName..'.txt', 'w')
     metrics:write(performance)
     metrics:close()
   --================== END CROSS-VALIDATION =====================
@@ -999,10 +999,10 @@ if opt.crop then
     f1 = 2. * precision * recall / (precision + recall)
     mcc = (tp * tn - fp * fn) / (((tp + tn) * (tp + fn) * (fp + tn) * (fp + fn)) ^ 0.5)
     
-    performance = 'accuracy = '.. accuracy..'\nprecision = '..precision..'\nrecall = '..recall..'\nspecificity = '..specificity..'\nf1 = '..f1..'\nmcc = '..mcc
+    performance = 'accuracy = '.. accuracy..'\nprecision = '..precision..'\nrecall = '..recall..'\nspecificity = '..specificity..'\nf1 = '..f1..'\nmcc = '..mcc..'\n'
     print(performance)
     --write results to file
-    metrics = io.open(opt.dataDir..'Results/performance-'..saveName..'.txt', 'w')
+    metrics = io.open(opt.dataDir..'Results/results_'..saveName..'.txt', 'w')
     metrics:write(performance)
     metrics:close()
   --========================= END ===========================
