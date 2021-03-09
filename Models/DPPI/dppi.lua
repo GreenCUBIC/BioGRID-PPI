@@ -212,7 +212,7 @@ end
 ---------------------CREATE-CROP---------------------------------------------
 function prep_data( file )
 
-  local proteinFile = Csv(file..".node","r")
+  local proteinFile = Csv(opt.dataDir..file..".node","r")
   local proteinString = proteinFile:readall()
 
   local ppFeature = {}
@@ -220,7 +220,7 @@ function prep_data( file )
 
   for i=1, #proteinString do
   
-    local fileName = file..'/'..proteinString[i][1]
+    local fileName = opt.dataDir..file..'/'..proteinString[i][1]
     if file_exists( fileName ) then
       local proFile = Csv( fileName, 'r', '\t')
       local profile = proFile:readall()
@@ -254,8 +254,8 @@ function prep_data( file )
 
   proteinFile:close()
   collectgarbage()
-  torch.save(file..'_profile_crop_'..crop_size..'.t7', ppFeature )
-  torch.save(file..'_number_crop_'..crop_size..'.t7', pNumber )
+  torch.save('Data/'..file..'_profile_crop_'..crop_size..'.t7', ppFeature )
+  torch.save('Data/'..file..'_number_crop_'..crop_size..'.t7', pNumber )
 
   return pNumber, ppFeature
 end
@@ -263,7 +263,7 @@ end
 function prep_cv_data( file, k )
 
   --load pairs
-  local prot_pairs = torch.load( file..k..'_labels.dat' )
+  local prot_pairs = torch.load( 'Data/'..file..k..'_labels.dat' )
   --isolate only unique proteins found in pairs
   local proteins = {}
   for p=1, #prot_pairs do
@@ -292,14 +292,14 @@ function prep_cv_data( file, k )
   local folderName = file:gsub('_train_fold--', '')
   local folderName = folderName:gsub('_test_fold--', '')
 
-  local proteinFile = Csv(folderName..".node","r")
+  local proteinFile = Csv(opt.dataDir..folderName..".node","r")
   local proteinString = proteinFile:readall()
 
   local ppFeature = {}
   local pNumber = {}
 
   for i=1, #proteins do
-    local fileName = folderName..'/'..proteins[i]
+    local fileName = opt.dataDir..folderName..'/'..proteins[i]
     if file_exists( fileName ) then
       local proFile = Csv( fileName, 'r', '\t')
       local profile = proFile:readall()
@@ -333,8 +333,8 @@ function prep_cv_data( file, k )
 
   proteinFile:close()
   collectgarbage()
-  torch.save(file..k..'_profile_crop_'..crop_size..'.t7', ppFeature )
-  torch.save(file..k..'_number_crop_'..crop_size..'.t7', pNumber )
+  torch.save('Data/'..file..k..'_profile_crop_'..crop_size..'.t7', ppFeature )
+  torch.save('Data/'..file..k..'_number_crop_'..crop_size..'.t7', pNumber )
 
   return pNumber, ppFeature
 end
@@ -762,12 +762,16 @@ end
 --******************** MAIN-RUN *******************************************
 --*************************************************************************
 ---------------------CONVERT-CSV-TO-DAT------------------------------------
+paths.mkdir('Results/')
+paths.mkdir('Model/')
+paths.mkdir('Data/')
+
 print('==> creating _labels.dat from .csv')
 
 --check if cross-validation or single train/test
 if opt.train == opt.test then
   --check if all files already exist
-  if cv_files_exist(opt.dataDir..opt.train, opt.kfold) then
+  if cv_files_exist('Data/'..opt.train, opt.kfold) then
     print('cross-validation files already found!')
   else
     -- get PPIs from .csv
@@ -778,26 +782,26 @@ if opt.train == opt.test then
     training, testing = get_kfold_split( train_ppi, opt.kfold )
     --save k-fold subsets
     for k=1, opt.kfold do
-      torch.save( opt.dataDir..opt.train..'_train_fold-'..k..'_labels.dat', training[k] )
-      torch.save( opt.dataDir..opt.test..'_test_fold-'..k..'_labels.dat', testing[k] )
+      torch.save( 'Data/'..opt.train..'_train_fold-'..k..'_labels.dat', training[k] )
+      torch.save( 'Data/'..opt.test..'_test_fold-'..k..'_labels.dat', testing[k] )
     end
   end
 else
-  if file_exists(opt.dataDir..opt.train..'_labels.dat') then
+  if file_exists('Data/'..opt.train..'_labels.dat') then
     print(opt.train..'_labels.dat'..' already found')
   else
     train_ppiFile = Csv(opt.dataDir..opt.train..'.csv', "r")
     train_ppi = train_ppiFile:readall()
     train_ppiFile:close()
-    torch.save( opt.dataDir..opt.train..'_labels.dat', train_ppi)
+    torch.save( 'Data/'..opt.train..'_labels.dat', train_ppi)
   end
-  if file_exists(opt.dataDir..opt.test..'_labels.dat') then
+  if file_exists('Data/'..opt.test..'_labels.dat') then
     print(opt.test..'_labels.dat'..' already found')
   else
     test_ppiFile = Csv(opt.dataDir..opt.test..'.csv', "r")
     test_ppi = test_ppiFile:readall()
     test_ppiFile:close()
-    torch.save( opt.dataDir..opt.test..'_labels.dat', test_ppi) 
+    torch.save( 'Data/'..opt.test..'_labels.dat', test_ppi) 
   end 
 end
 ---------------------CONVERT-CSV-TO-DAT------------------------------------
@@ -831,35 +835,34 @@ background[20]=0.0700241481678408; --V
 -- create crop data
 if opt.train == opt.test then
   --check if all files already exist
-  if cv_files_exist(opt.dataDir..opt.train, opt.kfold) then
+  if cv_files_exist('Data/'..opt.train, opt.kfold) then
     print('cross-validation files already found!')
   else
     print('creating cross-validation subset crop files...')
     --create and save k-fold subset crop files
     for k=1, opt.kfold do
-      pNumber, ppFeature = prep_cv_data(opt.dataDir..opt.train..'_train_fold-', k)
-      test_pNumber, test_ppFeature = prep_cv_data(opt.dataDir..opt.test..'_test_fold-', k)
+      pNumber, ppFeature = prep_cv_data(opt.train..'_train_fold-', k)
+      test_pNumber, test_ppFeature = prep_cv_data(opt.test..'_test_fold-', k)
     end
   end
 else
-  if file_exists(opt.dataDir..opt.train..'_profile_crop_'..crop_size..'.t7') and file_exists(opt.dataDir..opt.train..'_number_crop_'..crop_size..'.t7') then
+  if file_exists('Data/'..opt.train..'_profile_crop_'..crop_size..'.t7') and file_exists('Data/'..opt.train..'_number_crop_'..crop_size..'.t7') then
     print(opt.train..' crop files already found')
   else
     print('creating training crop files...')
-    pNumber, ppFeature = prep_data(opt.dataDir..opt.train)
+    pNumber, ppFeature = prep_data(opt.train)
   end 
   if file_exists(opt.dataDir..opt.test..'_profile_crop_'..crop_size..'.t7') and file_exists(opt.dataDir..opt.test..'_number_crop_'..crop_size..'.t7') then
     print(opt.test..' crop files already found')
   else
     print('creating testing crop files...')
-    test_pNumber, test_ppFeature = prep_data(opt.dataDir..opt.test)
+    test_pNumber, test_ppFeature = prep_data(opt.test)
   end
 end
 print('==> raw data to representation processing completed')
 --------------- CREATE CROP ----------------------------
 
-paths.mkdir(opt.dataDir..'Results/')
-paths.mkdir(opt.dataDir..'Model/')
+
 if opt.crop then
   if opt.train == opt.test then
   --================== START CROSS-VALIDATION =====================
@@ -875,15 +878,15 @@ if opt.crop then
     avg_mcc = {}
     for k=1, opt.kfold do
     -------------- LOAD DATA CROSS-VALIDATION -----------
-      pNumber = torch.load( opt.dataDir..opt.train..'_train_fold-'..k..'_number_crop_'..opt.cropLength..'.t7' )
-      test_pNumber = torch.load( opt.dataDir..opt.test..'_test_fold-'..k..'_number_crop_'..opt.cropLength..'.t7' )
-      trainData[k] = pair_crop_load(opt.dataDir..opt.train..'_train_fold-'..k..'_labels.dat',10, pNumber )
+      pNumber = torch.load( 'Data/'..opt.train..'_train_fold-'..k..'_number_crop_'..opt.cropLength..'.t7' )
+      test_pNumber = torch.load( 'Data/'..opt.test..'_test_fold-'..k..'_number_crop_'..opt.cropLength..'.t7' )
+      trainData[k] = pair_crop_load('Data/'..opt.train..'_train_fold-'..k..'_labels.dat',10, pNumber )
       print(opt.train..' fold - '..k..' training on '..#trainData[k].org_data..' interactions')
-      testData[k] = pair_crop_load(opt.dataDir..opt.test..'_test_fold-'..k..'_labels.dat',10, test_pNumber )
+      testData[k] = pair_crop_load('Data/'..opt.test..'_test_fold-'..k..'_labels.dat',10, test_pNumber )
       print(opt.test..' fold - '..k..' testing on '..#testData[k].org_data..' interactions')
       
-      train_feature = torch.load( opt.dataDir..opt.train..'_train_fold-'..k..'_profile_crop_'..opt.cropLength..'.t7' )
-      test_feature = torch.load( opt.dataDir..opt.test..'_test_fold-'..k..'_profile_crop_'..opt.cropLength..'.t7' )
+      train_feature = torch.load( 'Data/'..opt.train..'_train_fold-'..k..'_profile_crop_'..opt.cropLength..'.t7' )
+      test_feature = torch.load( 'Data/'..opt.test..'_test_fold-'..k..'_profile_crop_'..opt.cropLength..'.t7' )
       num_features = train_feature[ trainData[k].data[1][1] ]:size(2)
       num_outputs = 1
       
@@ -911,7 +914,7 @@ if opt.crop then
       tp, fp, tn, fn, total_pos, total_neg = get_performance(val_scores, val_labels)
       print('\ntp = '..tp..'\ntn = '..tn..'\nfp = '..fp..'\nfn = '..fn..'\n')
     
-      accuracy = tp / #testData[k].org_data
+      accuracy = (tp + tn) / #testData[k].org_data
       precision = tp / (tp + fp)
       recall = tp / total_pos
       specificity = tn / (tn + fn)
@@ -936,9 +939,10 @@ if opt.crop then
     avg_mcc = torch.Tensor(avg_mcc)
     
     performance = 'accuracy = '.. torch.mean(avg_accuracy)..'\nprecision = '..torch.mean(avg_precision)..'\nrecall = '..torch.mean(avg_recall)..'\nspecificity = '..torch.mean(avg_specificity)..'\nf1 = '..torch.mean(avg_f1)..'\nmcc = '..torch.mean(avg_mcc)..'\n'
+    print('Average Performance:')
     print(performance)
     --write results to file
-    metrics = io.open(opt.dataDir..'Results/results_'..saveName..'.txt', 'w')
+    metrics = io.open('Results/results_'..saveName..'.txt', 'w')
     metrics:write(performance)
     metrics:close()
   --================== END CROSS-VALIDATION =====================
@@ -947,19 +951,19 @@ if opt.crop then
     ------------- LOAD TRAIN/TEST DATA ---------------------------
     if opt.loadModel != '' then
     print ('==> loading data '..opt.train)
-    pNumber = torch.load( opt.dataDir..opt.train..'_number_crop_'..opt.cropLength..'.t7' )
-    trainData = pair_crop_load( opt.dataDir..opt.train..'_labels.dat',10, pNumber )
+    pNumber = torch.load( 'Data/'..opt.train..'_number_crop_'..opt.cropLength..'.t7' )
+    trainData = pair_crop_load( 'Data/'..opt.train..'_labels.dat',10, pNumber )
     print(opt.train..' training '..#trainData.org_data..' interactions')
-    train_feature = torch.load( opt.dataDir..opt.train..'_profile_crop_'..opt.cropLength..'.t7' )
+    train_feature = torch.load( 'Data/'..opt.train..'_profile_crop_'..opt.cropLength..'.t7' )
     num_features = train_feature[ trainData.data[1][1] ]:size(2)
     end
     num_outputs = 1
     k = 1
     print ('==> loading data '..opt.test)
-    test_pNumber = torch.load( opt.dataDir..opt.test..'_number_crop_'..opt.cropLength..'.t7' )
-    testData = pair_crop_load( opt.dataDir..opt.test..'_labels.dat',10, test_pNumber )
+    test_pNumber = torch.load( 'Data/'..opt.test..'_number_crop_'..opt.cropLength..'.t7' )
+    testData = pair_crop_load( 'Data/'..opt.test..'_labels.dat',10, test_pNumber )
     print(opt.test..' testing '..#testData.org_data..' interactions')
-    test_feature = torch.load( opt.dataDir..opt.test..'_profile_crop_'..opt.cropLength..'.t7' )
+    test_feature = torch.load( 'Data/'..opt.test..'_profile_crop_'..opt.cropLength..'.t7' )
     shuffle = torch.range(1, testData.size)
     test_inputs, test_targets, test_weights = pair_seq_load_batch(testData, shuffle, test_feature)
   ----------- BUILD AND TRAIN MODEL -----------------------------
@@ -980,10 +984,10 @@ if opt.crop then
         train( i, trainData )
       end
       if opt.saveModel then
-        torch.save( dataDir..'/Model/'..saveName..'DPPI_model.t7', model )
+        torch.save( '/Model/'..saveName..'DPPI_model.t7', model )
       end
     else
-      model = torch.load( dataDir..'/Model/'..opt.loadModel )
+      model = torch.load( '/Model/'..opt.loadModel )
   --------------- TEST AND EVALUATE -----------------------------
     print('########## TESTING - ##########')
     val_scores, val_labels = make_prediction(testData, test_feature, k)
@@ -1002,7 +1006,7 @@ if opt.crop then
     performance = 'accuracy = '.. accuracy..'\nprecision = '..precision..'\nrecall = '..recall..'\nspecificity = '..specificity..'\nf1 = '..f1..'\nmcc = '..mcc..'\n'
     print(performance)
     --write results to file
-    metrics = io.open(opt.dataDir..'Results/results_'..saveName..'.txt', 'w')
+    metrics = io.open('Results/results_'..saveName..'.txt', 'w')
     metrics:write(performance)
     metrics:close()
   --========================= END ===========================
