@@ -18,7 +18,7 @@
     Main modifications include a change of command-line argument usage for execution and a choice of cross-validation 
     or a single train/test split. Prediction probabilities of each interaction in test data are also saved to file.
     Author: Eric Arezza
-    Last Updated: September 27, 2020
+    Last Updated: March 9, 2021
     
     Description:
         RCNN approach to binary classification of protein-protein interaction prediction.
@@ -404,8 +404,8 @@ if __name__ == "__main__":
                 else:
                     num_true_neg += 1
         
-        auc_test = roc_auc_score([seq_tensor[seq_index1[test]], seq_tensor[seq_index2[test]]], pred)
-        pr_test = average_precision_score([seq_tensor[seq_index1[test]], seq_tensor[seq_index2[test]]], pred)
+        auc_test = roc_auc_score(class_labels[test], pred)
+        pr_test = average_precision_score(class_labels[test], pred)
         
         if not CROSS_VALIDATE:
             # Save interaction probability results
