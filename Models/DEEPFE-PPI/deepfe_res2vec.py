@@ -33,7 +33,13 @@ __all__ = ['averagenum',
            'mkdir',
            'get_traintest_split',
            'get_crossvalidation_splits',
-           'get_test_results'
+           'get_test_results',
+           'to_categorical',
+           'categorical_probas_to_classes',
+           'calculate_performace',
+           'get_res2vec_data',
+           'getMemorystate',
+           'res2vec'
            ]
 
 import os, argparse
@@ -45,7 +51,6 @@ import numpy as np
 from keras.layers.core import Dense, Dropout, Merge
 #from keras.layers.merge import Concatenate
 from sklearn.preprocessing import StandardScaler
-import utils.tools as utils
 from keras.regularizers import l2
 from gensim.models import Word2Vec
 import copy
@@ -55,7 +60,7 @@ from keras import backend as K
 import tensorflow as tf
 import pandas as pd
 from keras.optimizers import SGD
-from datetime import datetime
+#from datetime import datetime
 import psutil
 
 # Description of command-line usage
@@ -93,7 +98,7 @@ if args.length is None:
     maxlen = 850
 else:
     maxlen = args.length[0]
-if args.loadModel is '':
+if args.loadModel == '':
     pretrained = None
 else:
     pretrained = args.loadModel[0]
@@ -106,7 +111,7 @@ if TRAIN_PATH == TEST_PATH:
     
 if args.results is None:
     #rst_file = os.getcwd()+'/Results/results_'+datetime.now().strftime("%d-%m-%Y_")+datetime.now().strftime("%H-%M-%S.txt")    
-    rst_file = os.getcwd()+'/Results/results_' + TRAIN_PATH.split('/')[-1] + TEST_PATH.split('/')[-1] + '.txt'
+    rst_file = os.getcwd()+'/Results/results_' + TRAIN_PATH.split('/')[-2] + '_' + TEST_PATH.split('/')[-2] + '.txt'
 else:
     rst_file = args.results
 
@@ -389,6 +394,57 @@ def get_test_results(raw_data, test_indices, predictions, class_labels):
         
     return np.asarray(prob_results, dtype=str)
 
+def to_categorical(y, nb_classes=None):
+    '''Convert class vector (integers from 0 to nb_classes)
+    to binary class matrix, for use with categorical_crossentropy.
+    '''
+    y = np.array(y, dtype='int')
+    if not nb_classes:
+        nb_classes = np.max(y)+1
+    Y = np.zeros((len(y), nb_classes))
+    for i in range(len(y)):
+        Y[i, y[i]] = 1.
+    return Y
+
+def categorical_probas_to_classes(p):
+    return np.argmax(p, axis=1)
+
+def calculate_performace(test_num, pred_y,  labels):
+    tp =0
+    fp = 0
+    tn = 0
+    fn = 0
+    for index in range(test_num):
+        if labels[index] ==1:
+            if labels[index] == pred_y[index]:
+                tp = tp +1
+            else:
+                fn = fn + 1
+        else:
+            if labels[index] == pred_y[index]:
+                tn = tn +1
+            else:
+                fp = fp + 1        
+                
+    if (tp+fn) == 0:
+        q9 = float(tn-fp)/(tn+fp + 1e-06)
+    if (tn+fp) == 0:
+        q9 = float(tp-fn)/(tp+fn + 1e-06)
+    if  (tp+fn) != 0 and (tn+fp) !=0:
+        q9 = 1- float(np.sqrt(2))*np.sqrt(float(fn*fn)/((tp+fn)*(tp+fn))+float(fp*fp)/((tn+fp)*(tn+fp)))
+        
+    Q9 = (float)(1+q9)/2
+    accuracy = float(tp + tn)/test_num
+    precision = float(tp)/(tp+ fp + 1e-06)
+    sensitivity = float(tp)/ (tp + fn + 1e-06)
+    recall = float(tp)/ (tp + fn + 1e-06)
+    specificity = float(tn)/(tn + fp + 1e-06)
+    ppv = float(tp)/(tp + fp + 1e-06)
+    npv = float(tn)/(tn + fn + 1e-06)
+    f1_score = float(2*tp)/(2*tp + fp + fn + 1e-06)
+    MCC = float(tp*tn-fp*fn)/(np.sqrt((tp+fp)*(tp+fn)*(tn+fp)*(tn+fn)))
+    return tp,fp,tn,fn,accuracy, precision, sensitivity, recall, specificity, MCC, f1_score,Q9, ppv,npv
+
 '''
     The following functions are used to build res2vec representation
 ''' 
@@ -416,6 +472,8 @@ def getMemorystate():
     return line 
 
 def res2vec(size, window, maxlen, files):
+    if not os.path.exists(os.getcwd()+'/word2vec/'):
+        os.mkdir(os.getcwd()+'/word2vec/')
     data = token(get_res2vec_data(files))   # token
     t_start = time()
     model = Word2Vec(data, size = size, min_count = 0, sg =1, window = window)
@@ -423,12 +481,13 @@ def res2vec(size, window, maxlen, files):
     print('Word2Vec model is created')
     sg = 'wv_' + TRAIN_PATH.split('/')[-2] + '_size_'+str(size)+'_window_'+str(window) 
     print('Time to create Word2Vec model ('+sg+'):', time() - t_start)
-    model.save('model/word2vec/'+sg+'.model')
+    model.save('word2vec/'+sg+'.model')
     
     # load dictionary
-    model_wv = Word2Vec.load('model/word2vec/'+sg+'.model')
+    model_wv = Word2Vec.load('word2vec/'+sg+'.model')
     
     return model_wv
+
 
 #%%  
 if __name__ == "__main__": 
@@ -456,7 +515,7 @@ if __name__ == "__main__":
     for f in range(0, len(train_files)):
         seq_files.append(path + train_files[f])
     # load dictionary
-    #model_wv = Word2Vec.load('model/word2vec/wv_swissProt_size_20_window_4.model')
+    #model_wv = Word2Vec.load('word2vec/wv_swissProt_size_20_window_4.model')
     # make dictionary
     model_wv = res2vec(size, window, maxlen, seq_files)
     
@@ -468,16 +527,16 @@ if __name__ == "__main__":
     if not CROSS_VALIDATE:
         if pretrained != None:
             h5_file = h5py.File(pretrained.replace('.model', '_train_data.h5'), 'r')
-            train_fea_protein_AB =  h5_file['trafind pipr_Yeast_DPPI/ -type f ! -name "*.txt"inset_x'][:]
+            train_fea_protein_AB =  h5_file['trainset_x'][:]
             train_label = h5_file['trainset_y'][:]
             raw_pairs_train = [None]*len(train_fea_protein_AB)
             h5_file.close()
             print('dataset is loaded')
-            Y = utils.to_categorical(train_label)
+            Y = to_categorical(train_label)
         else:
             # Process training data
             raw_pairs_train, train_fea_protein_AB, train_label = get_dataset(model_wv.wv, maxlen, size, train_files, data='train')
-            Y_train = utils.to_categorical(train_label)
+            Y_train = to_categorical(train_label)
             if args.saveModel:
                 h5_file = h5py.File(os.getcwd() + '/Models/' + os.path.split(TRAIN_PATH)[0].split('/')[-1] + '_DEEPFE_train_data.h5','w')
                 h5_file.create_dataset('trainset_x', data = train_fea_protein_AB)
@@ -486,7 +545,7 @@ if __name__ == "__main__":
                 h5_file.close()
         # Process testing data
         raw_pairs_test, test_fea_protein_AB, test_label = get_dataset(model_wv.wv, maxlen, size, test_files, data='test')
-        Y_test = utils.to_categorical(test_label)
+        Y_test = to_categorical(test_label)
         # Combine to common variable, but keep train/test split
         raw_pairs = raw_pairs_train + raw_pairs_test
         fea_protein_AB = np.vstack((train_fea_protein_AB, test_fea_protein_AB))
@@ -499,12 +558,11 @@ if __name__ == "__main__":
         #scaler
         scaler = StandardScaler().fit(fea_protein_AB)
         scaled_fea_protein_AB = scaler.transform(fea_protein_AB)
-        Y = utils.to_categorical(train_label)
+        Y = to_categorical(train_label)
         train_test = get_crossvalidation_splits(scaled_fea_protein_AB, Y, nsplits=5)
     
-    os.mkdir(os.getcwd()+'/Results/')
-    os.mkdir(os.getcwd()+'/Models/')
     scores = []
+    scores_array = []
     i = 0
     for (train_index, test_index) in train_test:
         
@@ -542,21 +600,21 @@ if __name__ == "__main__":
         if not CROSS_VALIDATE:
             # Save interaction probability results
             prob_results = get_test_results(raw_pairs, test_index, predictions, Y)
-            np.savetxt('Results/predictions_' + str(i) + '_' + os.path.split(TEST_PATH)[0].split('/')[-1] + '.txt', prob_results, fmt='%s', delimiter='\n')
+            np.savetxt('Results/predictions_' + os.path.split(TRAIN_PATH)[0].split('/')[-1] + '_' + os.path.split(TEST_PATH)[0].split('/')[-1] + '.txt', prob_results, fmt='%s', delimiter='\n')
         else:
             # Save interaction probability results
             prob_results = get_test_results(raw_pairs, test_index, predictions, Y)
-            np.savetxt('Results/predictions_' + os.path.split(TEST_PATH)[0].split('/')[-1] + '_test_' + str(i) + '.txt', prob_results, fmt='%s', delimiter='\n')
+            np.savetxt('Results/predictions_' + os.path.split(TRAIN_PATH)[0].split('/')[-1] + '_' + os.path.split(TEST_PATH)[0].split('/')[-1] + '_fold-' + str(i) + '.txt', prob_results, fmt='%s', delimiter='\n')
 
         auc_test = roc_auc_score(y_test[:,1], predictions[:,1])
         pr_test = average_precision_score(y_test[:,1], predictions[:,1])
         
-        label_predict_test = utils.categorical_probas_to_classes(predictions)  
-        tp_test,fp_test,tn_test,fn_test,accuracy_test, precision_test, sensitivity_test,recall_test, specificity_test, MCC_test, f1_score_test,_,_,_= utils.calculate_performace(len(label_predict_test), label_predict_test, y_test[:,1])
-        print(' ===========  test:'+str(i))
+        label_predict_test = categorical_probas_to_classes(predictions)  
+        tp_test,fp_test,tn_test,fn_test,accuracy_test, precision_test, sensitivity_test,recall_test, specificity_test, MCC_test, f1_score_test,_,_,_= calculate_performace(len(label_predict_test), label_predict_test, y_test[:,1])
+        print(' ===========  fold: ' + str(i))
         print('\ttp=%0.0f,fp=%0.0f,tn=%0.0f,fn=%0.0f'%(tp_test,fp_test,tn_test,fn_test))
-        print('\tacc=%0.4f,pre=%0.4f,rec=%0.4f,sp=%0.4f,mcc=%0.4f,f1=%0.4f'
-              % (accuracy_test, precision_test, recall_test, specificity_test, MCC_test, f1_score_test))
+        print('\tacc=%0.4f,pre=%0.4f,rec=%0.4f,sp=%0.4f,f1=%0.4f,mcc=%0.4f'
+              % (accuracy_test, precision_test, recall_test, specificity_test, f1_score_test, MCC_test))
         print('\tauc=%0.4f,pr=%0.4f'%(auc_test,pr_test))
         scores.append([accuracy_test,precision_test, recall_test,specificity_test, MCC_test, f1_score_test, auc_test,pr_test]) 
         
@@ -567,31 +625,31 @@ if __name__ == "__main__":
         sc= pd.DataFrame(scores)   
 #        sc.to_csv(result_dir+swm+be+'.csv')   
         scores_array = np.array(scores)
-        print(("accuracy=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[0]*100,np.std(scores_array, axis=0)[0]*100)))
+        print(("\naccuracy=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[0]*100,np.std(scores_array, axis=0)[0]*100)))
         print(("precision=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[1]*100,np.std(scores_array, axis=0)[1]*100)))
         print("recall=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[2]*100,np.std(scores_array, axis=0)[2]*100))
         print("specificity=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[3]*100,np.std(scores_array, axis=0)[3]*100))
-        print("MCC=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[4]*100,np.std(scores_array, axis=0)[4]*100))
         print("f1_score=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[5]*100,np.std(scores_array, axis=0)[5]*100))
+        print("MCC=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[4]*100,np.std(scores_array, axis=0)[4]*100))
         print("roc_auc=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[6]*100,np.std(scores_array, axis=0)[6]*100))
         print("roc_pr=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[7]*100,np.std(scores_array, axis=0)[7]*100))
         
-        print(time() - t_start)
+        print('\n', time() - t_start, 'seconds to complete')
 
-        with open(rst_file,'w') as f:
-           f.write('accuracy=%.2f%% (+/- %.2f%%)' % (np.mean(scores_array, axis=0)[0]*100,np.std(scores_array, axis=0)[0]*100))
-           f.write('\n')
-           f.write("precision=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[1]*100,np.std(scores_array, axis=0)[1]*100))
-           f.write('\n')
-           f.write("recall=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[2]*100,np.std(scores_array, axis=0)[2]*100))
-           f.write('\n')
-           f.write("specificity=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[3]*100,np.std(scores_array, axis=0)[3]*100))
-           f.write('\n')
-           f.write("MCC=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[4]*100,np.std(scores_array, axis=0)[4]*100))
-           f.write('\n')
-           f.write("f1_score=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[5]*100,np.std(scores_array, axis=0)[5]*100))
-           f.write('\n')
-           f.write("roc_auc=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[6]*100,np.std(scores_array, axis=0)[6]*100))
-           f.write('\n')
-           f.write("roc_pr=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[7]*100,np.std(scores_array, axis=0)[7]*100))
-           f.write('\n')
+    with open(rst_file,'w') as f:
+        f.write('accuracy=%.2f%% (+/- %.2f%%)' % (np.mean(scores_array, axis=0)[0]*100,np.std(scores_array, axis=0)[0]*100))
+        f.write('\n')
+        f.write("precision=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[1]*100,np.std(scores_array, axis=0)[1]*100))
+        f.write('\n')
+        f.write("recall=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[2]*100,np.std(scores_array, axis=0)[2]*100))
+        f.write('\n')
+        f.write("specificity=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[3]*100,np.std(scores_array, axis=0)[3]*100))
+        f.write('\n')
+        f.write("f1_score=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[5]*100,np.std(scores_array, axis=0)[5]*100))
+        f.write('\n')
+        f.write("MCC=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[4]*100,np.std(scores_array, axis=0)[4]*100))
+        f.write('\n')
+        f.write("roc_auc=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[6]*100,np.std(scores_array, axis=0)[6]*100))
+        f.write('\n')
+        f.write("roc_pr=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[7]*100,np.std(scores_array, axis=0)[7]*100))
+        f.write('\n')
