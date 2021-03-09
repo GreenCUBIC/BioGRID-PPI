@@ -404,8 +404,8 @@ if __name__ == "__main__":
                 else:
                     num_true_neg += 1
         
-        auc_test = roc_auc_score(class_labels[test], pred)
-        pr_test = average_precision_score(class_labels[test], pred)
+        auc_roc_test = roc_auc_score(class_labels[test], pred)
+        auc_pr_test = average_precision_score(class_labels[test], pred)
         
         if not CROSS_VALIDATE:
             # Save interaction probability results
@@ -425,8 +425,8 @@ if __name__ == "__main__":
         spec = num_true_neg / (num_true_neg + num_false_neg)
         f1 = 2. * prec * recall / (prec + recall)
         mcc = (num_true_pos * num_true_neg - num_false_pos * num_false_neg) / (((num_true_pos + num_false_pos) * (num_true_pos + num_false_neg) * (num_false_pos + num_true_neg) * (num_true_neg + num_false_neg)) ** 0.5)
-        print(accuracy, prec, recall, spec, f1, mcc)
-        print(auc_test, pr_test)
+        print('acc=', accuracy, '\nprec=', prec, '\nrecall=', recall, '\nspec=', spec, '\nf1=', f1, '\nmcc=', mcc)
+        print('auc_roc=', auc_roc_test, '\nauc_pr=', auc_pr_test)
         
         avg_accuracy.append(accuracy)
         avg_precision.append(prec)
@@ -434,8 +434,8 @@ if __name__ == "__main__":
         avg_specificity.append(spec)
         avg_f1.append(f1)
         avg_mcc.append(mcc)
-        avg_roc_auc.append(auc_test)
-        avg_pr_auc.append(pr_test)
+        avg_roc_auc.append(auc_roc_test)
+        avg_pr_auc.append(auc_pr_test)
     
     # Write results to file
     with open(rst_file, 'w') as fp:
