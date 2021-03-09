@@ -15,7 +15,7 @@
     Main modifications include a change of command-line argument usage for execution and a choice of cross-validation 
     or a single train/test split. Prediction probabilities of each interaction in test data are also saved to file.
     Author: Eric Arezza
-    Last Updated: October 28, 2020
+    Last Updated: March 9, 2021
     
     Description:
         Res2evc embedding for sequence representation in deep learning approach to binary classification of protein-protein interaction prediction.
@@ -606,8 +606,8 @@ if __name__ == "__main__":
             prob_results = get_test_results(raw_pairs, test_index, predictions, Y)
             np.savetxt('Results/predictions_' + os.path.split(TRAIN_PATH)[0].split('/')[-1] + '_' + os.path.split(TEST_PATH)[0].split('/')[-1] + '_fold-' + str(i) + '.txt', prob_results, fmt='%s', delimiter='\n')
 
-        auc_test = roc_auc_score(y_test[:,1], predictions[:,1])
-        pr_test = average_precision_score(y_test[:,1], predictions[:,1])
+        auc_roc_test = roc_auc_score(y_test[:,1], predictions[:,1])
+        auc_pr_test = average_precision_score(y_test[:,1], predictions[:,1])
         
         label_predict_test = categorical_probas_to_classes(predictions)  
         tp_test,fp_test,tn_test,fn_test,accuracy_test, precision_test, sensitivity_test,recall_test, specificity_test, MCC_test, f1_score_test,_,_,_= calculate_performace(len(label_predict_test), label_predict_test, y_test[:,1])
@@ -615,8 +615,8 @@ if __name__ == "__main__":
         print('\ttp=%0.0f,fp=%0.0f,tn=%0.0f,fn=%0.0f'%(tp_test,fp_test,tn_test,fn_test))
         print('\tacc=%0.4f,pre=%0.4f,rec=%0.4f,sp=%0.4f,f1=%0.4f,mcc=%0.4f'
               % (accuracy_test, precision_test, recall_test, specificity_test, f1_score_test, MCC_test))
-        print('\tauc=%0.4f,pr=%0.4f'%(auc_test,pr_test))
-        scores.append([accuracy_test,precision_test, recall_test,specificity_test, MCC_test, f1_score_test, auc_test,pr_test]) 
+        print('\tauc_roc=%0.4f,auc_pr=%0.4f'%(auc_roc_test, auc_pr_test))
+        scores.append([accuracy_test, precision_test, recall_test, specificity_test, MCC_test, f1_score_test, auc_roc_test, auc_pr_test]) 
         
         i=i+1
         K.clear_session()
@@ -632,7 +632,7 @@ if __name__ == "__main__":
         print("f1_score=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[5]*100,np.std(scores_array, axis=0)[5]*100))
         print("MCC=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[4]*100,np.std(scores_array, axis=0)[4]*100))
         print("roc_auc=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[6]*100,np.std(scores_array, axis=0)[6]*100))
-        print("roc_pr=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[7]*100,np.std(scores_array, axis=0)[7]*100))
+        print("pr_auc=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[7]*100,np.std(scores_array, axis=0)[7]*100))
         
         print('\n', time() - t_start, 'seconds to complete')
 
@@ -651,5 +651,5 @@ if __name__ == "__main__":
         f.write('\n')
         f.write("roc_auc=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[6]*100,np.std(scores_array, axis=0)[6]*100))
         f.write('\n')
-        f.write("roc_pr=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[7]*100,np.std(scores_array, axis=0)[7]*100))
+        f.write("pr_auc=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[7]*100,np.std(scores_array, axis=0)[7]*100))
         f.write('\n')
