@@ -17,7 +17,7 @@
     Main modifications include a change of command-line argument usage for execution and a choice of cross-validation 
     or a single train/test split. Prediction probabilities of each interaction in test data are also saved to file.
     Author: Eric Arezza
-    Last Updated: February 8, 2021
+    Last Updated: March 9, 2021
     
     Description:
         Deep learning CNN approach to binary classification of protein-protein interaction prediction.
@@ -45,7 +45,8 @@ cmd:text('Options:')
 
 -- global:
 cmd:option('-device', 1, 'set GPU Device')
-cmd:option('-string', os.date("%d-%m-%Y"), 'suffix to log files')
+--cmd:option('-string', os.date("%d-%m-%Y"), 'suffix to log files')
+cmd:option('-string', '', 'suffix to log files')
 cmd:option('-saveModel', false, 'saves the model if true')
 cmd:option('-loadModel', '', 'load pre-trained model')
 cmd:option('-seed', 1, 'manual seed')
@@ -724,26 +725,82 @@ function get_performance(scores, truths)
   end
 
   for i=1, scores:size(1) do
-      --compare values
-      truth = truths[i][1]
-      score = math.floor(scores[i][1] + 0.5)
+    --compare values
+    truth = truths[i][1]
+    score = math.floor(scores[i][1] + 0.5)
+    --tally metrics
+    if truth == 1 and score == 1 then
+      total_pos = total_pos + 1
+      tp = tp + 1
+    elseif  truth == 0 and score == 0 then
+      total_neg = total_neg + 1
+      tn = tn + 1
+    elseif truth == 1 and score == 0 then
+      total_pos = total_pos + 1
+      fn = fn + 1
+    elseif truth == 0 and score == 1 then
+      total_neg = total_neg + 1
+      fp = fp + 1
+    end    
+  end  
+  return tp, fp, tn, fn, total_pos, total_neg
+end
+
+function get_auc(scores, truths)
+  local tp = 0
+  local fp = 0 
+  local tn = 0 
+  local fn = 0
+  local total_pos = 0
+  local total_neg = 0
+  --create threshold steps
+  local thresholds = {}
+  local thresh = 0
+  for t=1, 101 do
+    thresholds[t] = thresh
+    thresh = thresh + 0.01
+  end
+  --Yrecall vs X(1-specificity) and Yprecision vs XRecall
+  local tpr = {}
+  local fpr = {}
+  local prec = {}
+  for j=1, 101 do
+    threshold = thresholds[j]
+    for i=1, scores:size(1) do
       --tally metrics
-      if truth == 1 and score == 1 then
+      if truths[i][1] == 1 and scores[i][1] >= threshold then
           total_pos = total_pos + 1
           tp = tp + 1
-      elseif  truth == 0 and score == 0 then
+      elseif  truths[i][1] == 0 and scores[i][1] <= threshold then
           total_neg = total_neg + 1
           tn = tn + 1
-      elseif truth == 1 and score == 0 then
+      elseif truths[i][1] == 1 and scores[i][1] <= threshold then
           total_pos = total_pos + 1
           fn = fn + 1
-      elseif truth == 0 and score == 1 then
+      elseif truths[i][1] == 0 and scores[i][1] >= threshold then
           total_neg = total_neg + 1
           fp = fp + 1
-      end    
+      end  
+    end 
+    tpr[j] = tp / total_pos
+    fpr[j] = 1 - (tn / (tn + fn))
+    prec[j] = tp / (tp + fp)
+    tp = 0
+    tn = 0
+    fp = 0
+    fn = 0
+    total_pos = 0
+    total_neg = 0
   end
-    
-  return tp, fp, tn, fn, total_pos, total_neg
+  
+  local auc_roc = 0
+  local auc_pr = 0
+  for i=2, 101 do
+    auc_roc = auc_roc + (fpr[i] - fpr[i-1]) * (tpr[i-1] + tpr[i])/2
+    auc_pr = auc_pr + (tpr[i] - tpr[i-1]) * (prec[i-1] + prec[i])/2
+  end
+  
+  return auc_roc, auc_pr
 end
 ------------------------PREDICT & EVALUATE---------------------------------
 
@@ -876,6 +933,8 @@ if opt.crop then
     avg_specificity = {}
     avg_f1 = {}
     avg_mcc = {}
+    avg_roc = {}
+    avg_pr = {}
     for k=1, opt.kfold do
     -------------- LOAD DATA CROSS-VALIDATION -----------
       pNumber = torch.load( 'Data/'..opt.train..'_train_fold-'..k..'_number_crop_'..opt.cropLength..'.t7' )
@@ -920,6 +979,8 @@ if opt.crop then
       specificity = tn / (tn + fn)
       f1 = 2. * precision * recall / (precision + recall)
       mcc = (tp * tn - fp * fn) / (((tp + tn) * (tp + fn) * (fp + tn) * (fp + fn)) ^ 0.5)
+      
+      auc_roc, auc_pr = get_auc(val_scores, val_labels)
         
       avg_accuracy[k] = accuracy
       avg_precision[k] = precision
@@ -927,8 +988,11 @@ if opt.crop then
       avg_specificity[k] = specificity
       avg_f1[k] = f1
       avg_mcc[k] = mcc
+      avg_roc[k] = auc_roc
+      avg_pr[k] = auc_pr
       print('Fold-'..k..' performance:')
       print('accuracy = '.. accuracy..'\nprecision = '..precision..'\nrecall = '..recall..'\nspecificity = '..specificity..'\nf1 = '..f1..'\nmcc = '..mcc..'\n')
+      print('auc_roc = '..auc_roc..'\nauc_pr = '..auc_pr..'\n')
     end
     
     avg_accuracy = torch.Tensor(avg_accuracy)
@@ -937,8 +1001,18 @@ if opt.crop then
     avg_specificity = torch.Tensor(avg_specificity)
     avg_f1 = torch.Tensor(avg_f1)
     avg_mcc = torch.Tensor(avg_mcc)
+    avg_roc = torch.Tensor(avg_roc)
+    avg_pr = torch.Tensor(avg_pr)
     
-    performance = 'accuracy = '.. torch.mean(avg_accuracy)..'\nprecision = '..torch.mean(avg_precision)..'\nrecall = '..torch.mean(avg_recall)..'\nspecificity = '..torch.mean(avg_specificity)..'\nf1 = '..torch.mean(avg_f1)..'\nmcc = '..torch.mean(avg_mcc)..'\n'
+    performance = 'accuracy='..torch.mean(avg_accuracy)*100..'% (+/-'..torch.std(avg_accuracy)*100..'%)'..
+    '\nprecision='..torch.mean(avg_precision)*100..'% (+/-'..torch.std(avg_precision)*100..'%)'..
+    '\nrecall='..torch.mean(avg_recall)*100..'% (+/-'..torch.std(avg_recall)*100..'%)'..
+    '\nspecificity='..torch.mean(avg_specificity)*100..'% (+/-'..torch.std(avg_specificity)*100..'%)'..
+    '\nf1='..torch.mean(avg_f1)*100..'% (+/-'..torch.std(avg_f1)*100..'%)'..
+    '\nmcc='..torch.mean(avg_mcc)*100..'% (+/-'..torch.std(avg_mcc)*100..'%)'..
+    '\nauc_roc='..torch.mean(avg_roc)*100..'% (+/-'..torch.std(avg_roc)*100..'%)'..
+    '\nauc_pr='..torch.mean(avg_pr)*100..'% (+/-'..torch.std(avg_pr)*100..'%)'..'\n'
+    
     print('Average Performance:')
     print(performance)
     --write results to file
@@ -996,14 +1070,17 @@ if opt.crop then
     tp, fp, tn, fn, total_pos, total_neg = get_performance(val_scores, val_labels)
     print('\ntp = '..tp..'\ntn = '..tn..'\nfp = '..fp..'\nfn = '..fn..'\n')
 
-    accuracy = tp / #testData.org_data
+    accuracy = (tp + tn) / #testData.org_data
     precision = tp / (tp + fp)
     recall = tp / total_pos
     specificity = tn / (tn + fn)
     f1 = 2. * precision * recall / (precision + recall)
     mcc = (tp * tn - fp * fn) / (((tp + tn) * (tp + fn) * (fp + tn) * (fp + fn)) ^ 0.5)
     
-    performance = 'accuracy = '.. accuracy..'\nprecision = '..precision..'\nrecall = '..recall..'\nspecificity = '..specificity..'\nf1 = '..f1..'\nmcc = '..mcc..'\n'
+    auc_roc, auc_pr = get_auc(val_scores, val_labels)
+    
+    performance = 'accuracy='.. accuracy*100..'%\nprecision='..precision*100..'%\nrecall='..recall*100..'%\nspecificity='..specificity*100..'%\nf1='..f1*100..'%\nmcc='..mcc*100..'%\n'..
+    'auc_roc='..auc_roc*100..'%\nauc_pr='..auc_pr..'%\n'
     print(performance)
     --write results to file
     metrics = io.open('Results/results_'..saveName..'.txt', 'w')
