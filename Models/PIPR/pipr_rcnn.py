@@ -47,6 +47,7 @@ from keras.layers.convolutional import Conv1D
 from keras.layers.pooling import MaxPooling1D, GlobalAveragePooling1D
 from keras.optimizers import Adam,  RMSprop
 from sklearn.model_selection import KFold
+from sklearn.metrics import roc_auc_score, average_precision_score
 
 if 'embeddings' not in sys.path:
     sys.path.append('../../../embeddings')
@@ -363,6 +364,8 @@ if __name__ == "__main__":
     avg_specificity = []
     avg_f1 = []
     avg_mcc = []
+    avg_roc_auc = []
+    avg_pr_auc = []
         
     # Train and test model
     num_hit = num_total = num_pos = num_true_pos = num_false_pos = num_true_neg = num_false_neg = 0.
@@ -401,24 +404,29 @@ if __name__ == "__main__":
                 else:
                     num_true_neg += 1
         
+        auc_test = roc_auc_score([seq_tensor[seq_index1[test]], seq_tensor[seq_index2[test]]], pred)
+        pr_test = average_precision_score([seq_tensor[seq_index1[test]], seq_tensor[seq_index2[test]]], pred)
+        
         if not CROSS_VALIDATE:
             # Save interaction probability results
             prob_results = get_test_results(id2_aid_test, raw_data, test, class_labels, pred)
-            np.savetxt(os.getcwd()+'/Results/predictions_' + str(cv) + '_' + TEST_FILE.split('/')[-1].replace('.tsv', '.txt'), prob_results, fmt='%s', delimiter='\n')
+            np.savetxt(os.getcwd()+'/Results/predictions_' + TRAIN_FILE.split('/')[-1].replace('.tsv', '_') + TEST_FILE.split('/')[-1].replace('.tsv', '.txt'), prob_results, fmt='%s', delimiter='\n')
         else:
             # Save interaction probability results
             prob_results = get_test_results(id2_aid, raw_data, test, class_labels, pred)
-            np.savetxt(os.getcwd()+'/Results/predictions_' + TEST_FILE.split('/')[-1].replace('.tsv', '_') + 'test_' + str(cv) + '.txt', prob_results, fmt='%s', delimiter='\n')
+            np.savetxt(os.getcwd()+'/Results/predictions_' + TRAIN_FILE.split('/')[-1].replace('.tsv', '_') + TEST_FILE.split('/')[-1].replace('.tsv', '_') + 'fold-' + str(cv) + '.txt', prob_results, fmt='%s', delimiter='\n')
         
-        print("Fold", cv)
+        print("======== Fold", cv)
+        print('\ntp=%0.0f \nfp=%0.0f \ntn=%0.0f \nfn=%0.0f \n'%(num_true_pos, num_false_pos, num_true_neg, num_false_neg))
         cv += 1
         accuracy = num_hit / num_total
         prec = num_true_pos / (num_true_pos + num_false_pos)
         recall = num_true_pos / num_pos
         spec = num_true_neg / (num_true_neg + num_false_neg)
         f1 = 2. * prec * recall / (prec + recall)
-        mcc = (num_true_pos * num_true_neg - num_false_pos * num_false_neg) / (((num_true_pos + num_true_neg) * (num_true_pos + num_false_neg) * (num_false_pos + num_true_neg) * (num_false_pos + num_false_neg)) ** 0.5)
-        print (accuracy, prec, recall, spec, f1, mcc)
+        mcc = (num_true_pos * num_true_neg - num_false_pos * num_false_neg) / (((num_true_pos + num_false_pos) * (num_true_pos + num_false_neg) * (num_false_pos + num_true_neg) * (num_true_neg + num_false_neg)) ** 0.5)
+        print(accuracy, prec, recall, spec, f1, mcc)
+        print(auc_test, pr_test)
         
         avg_accuracy.append(accuracy)
         avg_precision.append(prec)
@@ -426,7 +434,17 @@ if __name__ == "__main__":
         avg_specificity.append(spec)
         avg_f1.append(f1)
         avg_mcc.append(mcc)
+        avg_roc_auc.append(auc_test)
+        avg_pr_auc.append(pr_test)
     
     # Write results to file
     with open(rst_file, 'w') as fp:
-        fp.write('acc=' + str(np.mean(avg_accuracy)) + '\nprec=' + str(np.mean(avg_precision)) + '\nrecall=' + str(np.mean(avg_recall)) + '\nspec=' + str(np.mean(avg_specificity)) + '\nf1=' + str(np.mean(avg_f1)) + '\nmcc=' + str(np.mean(avg_mcc)) + '\n')
+        fp.write(('accuracy=%.2f%% (+/- %.2f%%)'%(np.mean(avg_accuracy)*100, np.std(avg_accuracy)*100)
+                  + '\nprecision=%.2f%% (+/- %.2f%%)'%(np.mean(avg_precision)*100, np.std(avg_precision)*100) 
+                  + '\nrecall=%.2f%% (+/- %.2f%%)'%(np.mean(avg_recall)*100, np.std(avg_recall)*100) 
+                  + '\nspecificity=%.2f%% (+/- %.2f%%)'%(np.mean(avg_specificity)*100, np.std(avg_specificity)*100) 
+                  + '\nf1=%.2f%% (+/- %.2f%%)'%(np.mean(avg_f1)*100, np.std(avg_f1)*100) 
+                  + '\nmcc=%.2f%% (+/- %.2f%%)'%(np.mean(avg_mcc)*100, np.std(avg_mcc)*100)
+                  + '\nroc_auc=%.2f%% (+/- %.2f%%)' % (np.mean(avg_roc_auc)*100, np.std(avg_roc_auc)*100)
+                  + '\npr_auc=%.2f%% (+/- %.2f%%)' % (np.mean(avg_pr_auc)*100, np.std(avg_pr_auc)*100)
+                  + '\n'))
