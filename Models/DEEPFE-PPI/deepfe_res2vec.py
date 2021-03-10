@@ -74,6 +74,7 @@ parser.add_argument('-l', '--length', help='Max length (int)', type=int, nargs=1
 parser.add_argument('-b', '--batch', help='Batch size (int)', type=int, nargs=1, required=False)
 parser.add_argument('-e', '--epochs', help='Epochs (int)', type=int, nargs=1, required=False)
 parser.add_argument('-r','--results', help='Path to file to store results', type=str, nargs=1, required=False)
+parser.add_argument('-d','--dictionary', help='Path to word2vec model/dictionary', default='', type=str, nargs=1, required=False)
 parser.add_argument('-save', '--saveModel', help='Save model', action='store_true', default=False)
 parser.add_argument('-load','--loadModel', help='Path to pre-trained model', default='', type=str, nargs=1, required=False)
 args = parser.parse_args()
@@ -102,6 +103,10 @@ if args.loadModel == '':
     pretrained = None
 else:
     pretrained = args.loadModel[0]
+if args.dictionary == '':
+    wv_path = None
+else:
+    wv_path = args.loadModel[0]
 
 TRAIN_PATH = args.train[0]
 TEST_PATH = args.test[0]
@@ -515,9 +520,12 @@ if __name__ == "__main__":
     for f in range(0, len(train_files)):
         seq_files.append(path + train_files[f])
     # load dictionary
-    #model_wv = Word2Vec.load('word2vec/wv_swissProt_size_20_window_4.model')
-    # make dictionary
-    model_wv = res2vec(size, window, maxlen, seq_files)
+    if wv_path != None:
+        #model_wv = Word2Vec.load('word2vec/wv_swissProt_size_20_window_4.model')
+        model_wv = Word2Vec.load(wv_path)
+    else:
+        # make dictionary
+        model_wv = res2vec(size, window, maxlen, seq_files)
     
     sequence_len = size*maxlen
                        
