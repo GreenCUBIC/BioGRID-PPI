@@ -976,9 +976,9 @@ if opt.crop then
       accuracy = (tp + tn) / #testData[k].org_data
       precision = tp / (tp + fp)
       recall = tp / total_pos
-      specificity = tn / (tn + fn)
+      specificity = tn / (tn + fp)
       f1 = 2. * precision * recall / (precision + recall)
-      mcc = (tp * tn - fp * fn) / (((tp + tn) * (tp + fn) * (fp + tn) * (fp + fn)) ^ 0.5)
+      mcc = (tp * tn - fp * fn) / (((tp + fp) * (tp + fn) * (fp + tn) * (tn + fn)) ^ 0.5)
       
       auc_roc, auc_pr = get_auc(val_scores, val_labels)
         
@@ -1073,9 +1073,9 @@ if opt.crop then
     accuracy = (tp + tn) / #testData.org_data
     precision = tp / (tp + fp)
     recall = tp / total_pos
-    specificity = tn / (tn + fn)
+    specificity = tn / (tn + fp)
     f1 = 2. * precision * recall / (precision + recall)
-    mcc = (tp * tn - fp * fn) / (((tp + tn) * (tp + fn) * (fp + tn) * (fp + fn)) ^ 0.5)
+    mcc = (tp * tn - fp * fn) / (((tp + fp) * (tp + fn) * (fp + tn) * (tn + fn)) ^ 0.5)
     
     auc_roc, auc_pr = get_auc(val_scores, val_labels)
     
