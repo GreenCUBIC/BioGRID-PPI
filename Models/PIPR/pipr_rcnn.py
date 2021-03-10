@@ -419,11 +419,11 @@ if __name__ == "__main__":
         print("======== Fold", cv)
         print('\ntp=%0.0f \nfp=%0.0f \ntn=%0.0f \nfn=%0.0f \n'%(num_true_pos, num_false_pos, num_true_neg, num_false_neg))
         cv += 1
-        accuracy = num_hit / num_total
+        accuracy = (num_true_pos + num_true_neg) / num_total
         prec = num_true_pos / (num_true_pos + num_false_pos)
-        recall = num_true_pos / num_pos
-        spec = num_true_neg / (num_true_neg + num_false_neg)
-        f1 = 2. * prec * recall / (prec + recall)
+        recall = num_true_pos / (num_true_pos + num_false_neg)
+        spec = num_true_neg / (num_true_neg + num_false_pos)
+        f1 = 2. * (prec * recall) / (prec + recall)
         mcc = (num_true_pos * num_true_neg - num_false_pos * num_false_neg) / (((num_true_pos + num_false_pos) * (num_true_pos + num_false_neg) * (num_false_pos + num_true_neg) * (num_true_neg + num_false_neg)) ** 0.5)
         print('acc=', accuracy, '\nprec=', prec, '\nrecall=', recall, '\nspec=', spec, '\nf1=', f1, '\nmcc=', mcc)
         print('auc_roc=', auc_roc_test, '\nauc_pr=', auc_pr_test)
