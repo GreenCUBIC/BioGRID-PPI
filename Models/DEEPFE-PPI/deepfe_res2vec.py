@@ -106,7 +106,7 @@ else:
 if args.dictionary == '':
     wv_path = None
 else:
-    wv_path = args.loadModel[0]
+    wv_path = args.dictionary[0]
 
 TRAIN_PATH = args.train[0]
 TEST_PATH = args.test[0]
