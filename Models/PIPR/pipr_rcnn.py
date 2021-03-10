@@ -64,6 +64,7 @@ parser.add_argument('-m', '--mbedding', help='Embedding (int), 0=embeddings/defa
                     type=int, nargs=1, required=False, choices=[0,1,2,3])
 parser.add_argument('-d', '--dimensions', help='Hidden dimensions (int)', type=int, nargs=1, required=False)
 parser.add_argument('-e', '--epochs', help='Epochs (int)', type=int, nargs=1, required=False)
+parser.add_argument('-a', '--seq_size', help='Amino acids/sequence length (int)', type=int, nargs=1, required=False)
 parser.add_argument('-save', '--saveModel', help='Save model', action='store_true', default=False)
 parser.add_argument('-load','--loadModel', help='Path to pre-trained model', default='', type=str, nargs=1, required=False)
 parser.add_argument('-c', '--cpu', dest='cpu', help='Use only CPU', action='store_true', default=False)
@@ -87,6 +88,10 @@ if args.epochs is None:
     n_epochs = 100
 else:
     n_epochs = args.epochs[0]
+if args.seq_size is None:
+    SEQ_SIZE = 2000
+else:
+    SEQ_SIZE = args.seq_size[0]
 if args.loadModel is '':
     pretrained = None
 else:
@@ -113,7 +118,7 @@ print("\n---Using the following---\nSequences File: {}\nTraining File: {}\nTesti
 print("Label index: {}\nEmbedding: {} - {}\nHidden Dimensions: {}\nEpochs: {}\n".format(label_index, use_emb, EMB_FILES[use_emb], hidden_dim, n_epochs))
 print('Save model: {}\nLoad model: {}'.format(args.saveModel, pretrained))
 DIM = SEQ2T.dim
-SEQ_SIZE = 2000
+#SEQ_SIZE = 2000
 CLASS_MAP = {'0':1,'1':0}
 print("Class map:", CLASS_MAP)
 
