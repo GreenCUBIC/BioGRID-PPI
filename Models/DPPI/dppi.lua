@@ -783,8 +783,8 @@ function get_auc(scores, truths)
       end  
     end 
     tpr[j] = tp / total_pos
-    fpr[j] = 1 - (tn / (tn + fn))
-    prec[j] = tp / (tp + fp)
+    fpr[j] = 1 - (tn / (tn + fn + 1e-06))
+    prec[j] = tp / (tp + fp + 1e-06)
     tp = 0
     tn = 0
     fp = 0
@@ -820,8 +820,9 @@ end
 --*************************************************************************
 ---------------------CONVERT-CSV-TO-DAT------------------------------------
 paths.mkdir('Results/')
-paths.mkdir('Model/')
+paths.mkdir('Models/')
 paths.mkdir('Data/')
+t_start = os.time()
 
 print('==> creating _labels.dat from .csv')
 
@@ -974,11 +975,11 @@ if opt.crop then
       print('\ntp = '..tp..'\ntn = '..tn..'\nfp = '..fp..'\nfn = '..fn..'\n')
     
       accuracy = (tp + tn) / #testData[k].org_data
-      precision = tp / (tp + fp)
+      precision = tp / (tp + fp + 1e-06)
       recall = tp / total_pos
-      specificity = tn / (tn + fp)
-      f1 = 2. * precision * recall / (precision + recall)
-      mcc = (tp * tn - fp * fn) / (((tp + fp) * (tp + fn) * (fp + tn) * (tn + fn)) ^ 0.5)
+      specificity = tn / (tn + fp + 1e-06)
+      f1 = 2. * precision * recall / (precision + recall + 1e-06)
+      mcc = (tp * tn - fp * fn) / (((tp + fp + 1e-06) * (tp + fn + 1e-06) * (fp + tn + 1e-06) * (tn + fn + 1e-06)) ^ 0.5)
       
       auc_roc, auc_pr = get_auc(val_scores, val_labels)
         
@@ -993,6 +994,7 @@ if opt.crop then
       print('Fold-'..k..' performance:')
       print('accuracy = '.. accuracy..'\nprecision = '..precision..'\nrecall = '..recall..'\nspecificity = '..specificity..'\nf1 = '..f1..'\nmcc = '..mcc..'\n')
       print('auc_roc = '..auc_roc..'\nauc_pr = '..auc_pr..'\n')
+      print('time = '..os.time()-t_start..'\n')
     end
     
     avg_accuracy = torch.Tensor(avg_accuracy)
@@ -1004,14 +1006,15 @@ if opt.crop then
     avg_roc = torch.Tensor(avg_roc)
     avg_pr = torch.Tensor(avg_pr)
     
-    performance = 'accuracy='..torch.mean(avg_accuracy)*100..'% (+/-'..torch.std(avg_accuracy)*100..'%)'..
-    '\nprecision='..torch.mean(avg_precision)*100..'% (+/-'..torch.std(avg_precision)*100..'%)'..
-    '\nrecall='..torch.mean(avg_recall)*100..'% (+/-'..torch.std(avg_recall)*100..'%)'..
-    '\nspecificity='..torch.mean(avg_specificity)*100..'% (+/-'..torch.std(avg_specificity)*100..'%)'..
-    '\nf1='..torch.mean(avg_f1)*100..'% (+/-'..torch.std(avg_f1)*100..'%)'..
-    '\nmcc='..torch.mean(avg_mcc)*100..'% (+/-'..torch.std(avg_mcc)*100..'%)'..
-    '\nauc_roc='..torch.mean(avg_roc)*100..'% (+/-'..torch.std(avg_roc)*100..'%)'..
-    '\nauc_pr='..torch.mean(avg_pr)*100..'% (+/-'..torch.std(avg_pr)*100..'%)'..'\n'
+    performance = 'accuracy='..torch.mean(avg_accuracy)..' (+/-'..torch.std(avg_accuracy)..')'..
+    '\nprecision='..torch.mean(avg_precision)..' (+/-'..torch.std(avg_precision)..')'..
+    '\nrecall='..torch.mean(avg_recall)..' (+/-'..torch.std(avg_recall)..')'..
+    '\nspecificity='..torch.mean(avg_specificity)..' (+/-'..torch.std(avg_specificity)..')'..
+    '\nf1='..torch.mean(avg_f1)..' (+/-'..torch.std(avg_f1)..')'..
+    '\nmcc='..torch.mean(avg_mcc)..' (+/-'..torch.std(avg_mcc)..')'..
+    '\nauc_roc='..torch.mean(avg_roc)..' (+/-'..torch.std(avg_roc)..')'..
+    '\nauc_pr='..torch.mean(avg_pr)..' (+/-'..torch.std(avg_pr)..')'..'\n'..
+    '\ntime = '..os.time()-t_start..'\n'
     
     print('Average Performance:')
     print(performance)
@@ -1058,10 +1061,10 @@ if opt.crop then
         train( i, trainData )
       end
       if opt.saveModel then
-        torch.save( '/Model/'..saveName..'DPPI_model.t7', model )
+        torch.save( '/Models/'..saveName..'DPPI_model.t7', model )
       end
     else
-      model = torch.load( '/Model/'..opt.loadModel )
+      model = torch.load( '/Models/'..opt.loadModel )
   --------------- TEST AND EVALUATE -----------------------------
     print('########## TESTING - ##########')
     val_scores, val_labels = make_prediction(testData, test_feature, k)
@@ -1071,16 +1074,16 @@ if opt.crop then
     print('\ntp = '..tp..'\ntn = '..tn..'\nfp = '..fp..'\nfn = '..fn..'\n')
 
     accuracy = (tp + tn) / #testData.org_data
-    precision = tp / (tp + fp)
+    precision = tp / (tp + fp + 1e-06)
     recall = tp / total_pos
-    specificity = tn / (tn + fp)
-    f1 = 2. * precision * recall / (precision + recall)
-    mcc = (tp * tn - fp * fn) / (((tp + fp) * (tp + fn) * (fp + tn) * (tn + fn)) ^ 0.5)
+    specificity = tn / (tn + fp+ 1e-06)
+    f1 = 2. * precision * recall / (precision + recall + 1e-06)
+    mcc = (tp * tn - fp * fn) / (((tp + fp + 1e-06) * (tp + fn + 1e-06) * (fp + tn + 1e-06) * (tn + fn + 1e-06)) ^ 0.5)
     
     auc_roc, auc_pr = get_auc(val_scores, val_labels)
     
-    performance = 'accuracy='.. accuracy*100..'%\nprecision='..precision*100..'%\nrecall='..recall*100..'%\nspecificity='..specificity*100..'%\nf1='..f1*100..'%\nmcc='..mcc*100..'%\n'..
-    'auc_roc='..auc_roc*100..'%\nauc_pr='..auc_pr..'%\n'
+    performance = 'accuracy='.. accuracy..'\nprecision='..precision..'\nrecall='..recall..'\nspecificity='..specificity..'\nf1='..f1..'\nmcc='..mcc..
+    '\nauc_roc='..auc_roc..'\nauc_pr='..auc_pr..'\ntime = '..os.time()-t_start..'\n'
     print(performance)
     --write results to file
     metrics = io.open('Results/results_'..saveName..'.txt', 'w')
