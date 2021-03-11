@@ -37,6 +37,7 @@ import numpy as np
 import pickle
 
 from datetime import datetime
+from time import time
 from embeddings.seq2tensor import s2t
 from tqdm import tqdm
 
@@ -311,7 +312,9 @@ if __name__ == "__main__":
         os.mkdir(os.getcwd()+'/Models/')
     if not os.path.exists(os.getcwd()+'/Results/'):
         os.mkdir(os.getcwd()+'/Results/')
-        
+    
+    t_start = time()
+    
     # Get protein sequences
     id2index = {}
     seqs = []
@@ -429,7 +432,7 @@ if __name__ == "__main__":
         recall = num_true_pos / (num_true_pos + num_false_neg + 1e-06)
         spec = num_true_neg / (num_true_neg + num_false_pos + 1e-06)
         f1 = 2. * (prec * recall) / (prec + recall + 1e-06)
-        mcc = (num_true_pos * num_true_neg - num_false_pos * num_false_neg) / (((num_true_pos + num_false_pos) * (num_true_pos + num_false_neg) * (num_false_pos + num_true_neg) * (num_true_neg + num_false_neg)) ** 0.5)
+        mcc = (num_true_pos * num_true_neg - num_false_pos * num_false_neg) / (((num_true_pos + num_false_pos + 1e-06) * (num_true_pos + num_false_neg + 1e-06) * (num_false_pos + num_true_neg + 1e-06) * (num_true_neg + num_false_neg + 1e-06)) ** 0.5)
         print('acc=', accuracy, '\nprec=', prec, '\nrecall=', recall, '\nspec=', spec, '\nf1=', f1, '\nmcc=', mcc)
         print('auc_roc=', auc_roc_test, '\nauc_pr=', auc_pr_test)
         
@@ -441,15 +444,17 @@ if __name__ == "__main__":
         avg_mcc.append(mcc)
         avg_roc_auc.append(auc_roc_test)
         avg_pr_auc.append(auc_pr_test)
+        print('\n', time() - t_start, 'seconds to complete')
     
     # Write results to file
     with open(rst_file, 'w') as fp:
-        fp.write(('accuracy=%.2f%% (+/- %.2f%%)'%(np.mean(avg_accuracy)*100, np.std(avg_accuracy)*100)
-                  + '\nprecision=%.2f%% (+/- %.2f%%)'%(np.mean(avg_precision)*100, np.std(avg_precision)*100) 
-                  + '\nrecall=%.2f%% (+/- %.2f%%)'%(np.mean(avg_recall)*100, np.std(avg_recall)*100) 
-                  + '\nspecificity=%.2f%% (+/- %.2f%%)'%(np.mean(avg_specificity)*100, np.std(avg_specificity)*100) 
-                  + '\nf1=%.2f%% (+/- %.2f%%)'%(np.mean(avg_f1)*100, np.std(avg_f1)*100) 
-                  + '\nmcc=%.2f%% (+/- %.2f%%)'%(np.mean(avg_mcc)*100, np.std(avg_mcc)*100)
-                  + '\nroc_auc=%.2f%% (+/- %.2f%%)' % (np.mean(avg_roc_auc)*100, np.std(avg_roc_auc)*100)
-                  + '\npr_auc=%.2f%% (+/- %.2f%%)' % (np.mean(avg_pr_auc)*100, np.std(avg_pr_auc)*100)
+        fp.write(('accuracy=%.4f (+/- %.4f)'%(np.mean(avg_accuracy), np.std(avg_accuracy))
+                  + '\nprecision=%.4f (+/- %.4f)'%(np.mean(avg_precision), np.std(avg_precision)) 
+                  + '\nrecall=%.4f (+/- %.4f)'%(np.mean(avg_recall), np.std(avg_recall)) 
+                  + '\nspecificity=%.4f (+/- %.4f)'%(np.mean(avg_specificity), np.std(avg_specificity)) 
+                  + '\nf1=%.4f (+/- %.4f)'%(np.mean(avg_f1), np.std(avg_f1)) 
+                  + '\nmcc=%.4f (+/- %.4f)'%(np.mean(avg_mcc), np.std(avg_mcc))
+                  + '\nroc_auc=%.4f (+/- %.4f)' % (np.mean(avg_roc_auc), np.std(avg_roc_auc))
+                  + '\npr_auc=%.4f (+/- %.4f)' % (np.mean(avg_pr_auc), np.std(avg_pr_auc))
+                  + '\ntime=%.2f'%(time()-t_start)
                   + '\n'))
