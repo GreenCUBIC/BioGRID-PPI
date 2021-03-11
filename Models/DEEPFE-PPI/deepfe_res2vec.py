@@ -447,7 +447,7 @@ def calculate_performace(test_num, pred_y,  labels):
     ppv = float(tp)/(tp + fp + 1e-06)
     npv = float(tn)/(tn + fn + 1e-06)
     f1_score = float(2*tp)/(2*tp + fp + fn + 1e-06)
-    MCC = float(tp*tn-fp*fn)/(np.sqrt((tp+fp)*(tp+fn)*(tn+fp)*(tn+fn)))
+    MCC = float(tp*tn-fp*fn)/(np.sqrt((tp+fp+ 1e-06)*(tp+fn+ 1e-06)*(tn+fp+ 1e-06)*(tn+fn+ 1e-06)))
     return tp,fp,tn,fn,accuracy, precision, sensitivity, recall, specificity, MCC, f1_score,Q9, ppv,npv
 
 '''
@@ -519,19 +519,19 @@ if __name__ == "__main__":
         path = TRAIN_PATH
     for f in range(0, len(train_files)):
         seq_files.append(path + train_files[f])
+        
+    t_start = time()
     # load dictionary
     if wv_path != None:
         #model_wv = Word2Vec.load('word2vec/wv_swissProt_size_20_window_4.model')
         model_wv = Word2Vec.load(wv_path)
     else:
-        # make dictionary
+        # make res2vec dictionary
         model_wv = res2vec(size, window, maxlen, seq_files)
     
     sequence_len = size*maxlen
-                       
+                        
     # get training data 
-    t_start = time() 
-    
     if not CROSS_VALIDATE:
         if pretrained != None:
             h5_file = h5py.File(pretrained.replace('.model', '_train_data.h5'), 'r')
@@ -633,31 +633,33 @@ if __name__ == "__main__":
         sc= pd.DataFrame(scores)   
 #        sc.to_csv(result_dir+swm+be+'.csv')   
         scores_array = np.array(scores)
-        print(("\naccuracy=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[0]*100,np.std(scores_array, axis=0)[0]*100)))
-        print(("precision=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[1]*100,np.std(scores_array, axis=0)[1]*100)))
-        print("recall=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[2]*100,np.std(scores_array, axis=0)[2]*100))
-        print("specificity=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[3]*100,np.std(scores_array, axis=0)[3]*100))
-        print("f1_score=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[5]*100,np.std(scores_array, axis=0)[5]*100))
-        print("MCC=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[4]*100,np.std(scores_array, axis=0)[4]*100))
-        print("roc_auc=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[6]*100,np.std(scores_array, axis=0)[6]*100))
-        print("pr_auc=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[7]*100,np.std(scores_array, axis=0)[7]*100))
+        print(("\naccuracy=%.4f (+/- %.4f)" % (np.mean(scores_array, axis=0)[0],np.std(scores_array, axis=0)[0])))
+        print(("precision=%.4f (+/- %.4f)" % (np.mean(scores_array, axis=0)[1],np.std(scores_array, axis=0)[1])))
+        print("recall=%.4f (+/- %.4f)" % (np.mean(scores_array, axis=0)[2],np.std(scores_array, axis=0)[2]))
+        print("specificity=%.4f (+/- %.4f)" % (np.mean(scores_array, axis=0)[3],np.std(scores_array, axis=0)[3]))
+        print("f1_score=%.4f (+/- %.4f)" % (np.mean(scores_array, axis=0)[5],np.std(scores_array, axis=0)[5]))
+        print("MCC=%.4f (+/- %.4f)" % (np.mean(scores_array, axis=0)[4],np.std(scores_array, axis=0)[4]))
+        print("roc_auc=%.4f (+/- %.4f)" % (np.mean(scores_array, axis=0)[6],np.std(scores_array, axis=0)[6]))
+        print("pr_auc=%.4f (+/- %.4f)" % (np.mean(scores_array, axis=0)[7],np.std(scores_array, axis=0)[7]))
         
         print('\n', time() - t_start, 'seconds to complete')
 
     with open(rst_file,'w') as f:
-        f.write('accuracy=%.2f%% (+/- %.2f%%)' % (np.mean(scores_array, axis=0)[0]*100,np.std(scores_array, axis=0)[0]*100))
+        f.write('accuracy=%.4f (+/- %.4f)' % (np.mean(scores_array, axis=0)[0],np.std(scores_array, axis=0)[0]))
         f.write('\n')
-        f.write("precision=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[1]*100,np.std(scores_array, axis=0)[1]*100))
+        f.write("precision=%.4f (+/- %.4f)" % (np.mean(scores_array, axis=0)[1],np.std(scores_array, axis=0)[1]))
         f.write('\n')
-        f.write("recall=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[2]*100,np.std(scores_array, axis=0)[2]*100))
+        f.write("recall=%.4f (+/- %.4f)" % (np.mean(scores_array, axis=0)[2],np.std(scores_array, axis=0)[2]))
         f.write('\n')
-        f.write("specificity=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[3]*100,np.std(scores_array, axis=0)[3]*100))
+        f.write("specificity=%.4f (+/- %.4f)" % (np.mean(scores_array, axis=0)[3],np.std(scores_array, axis=0)[3]))
         f.write('\n')
-        f.write("f1_score=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[5]*100,np.std(scores_array, axis=0)[5]*100))
+        f.write("f1_score=%.4f (+/- %.4f)" % (np.mean(scores_array, axis=0)[5],np.std(scores_array, axis=0)[5]))
         f.write('\n')
-        f.write("MCC=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[4]*100,np.std(scores_array, axis=0)[4]*100))
+        f.write("MCC=%.4f (+/- %.4f)" % (np.mean(scores_array, axis=0)[4],np.std(scores_array, axis=0)[4]))
         f.write('\n')
-        f.write("roc_auc=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[6]*100,np.std(scores_array, axis=0)[6]*100))
+        f.write("roc_auc=%.4f (+/- %.4f)" % (np.mean(scores_array, axis=0)[6],np.std(scores_array, axis=0)[6]))
         f.write('\n')
-        f.write("pr_auc=%.2f%% (+/- %.2f%%)" % (np.mean(scores_array, axis=0)[7]*100,np.std(scores_array, axis=0)[7]*100))
+        f.write("pr_auc=%.4f (+/- %.4f)" % (np.mean(scores_array, axis=0)[7],np.std(scores_array, axis=0)[7]))
+        f.write('\n')
+        f.write('time=%.2f'%(time()-t_start))
         f.write('\n')
