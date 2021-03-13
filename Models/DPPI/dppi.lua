@@ -797,7 +797,7 @@ function get_auc(scores, truths)
   local auc_pr = 0
   for i=2, 101 do
     auc_roc = auc_roc + (fpr[i] - fpr[i-1]) * (tpr[i-1] + tpr[i])/2
-    auc_pr = auc_pr + (tpr[i] - tpr[i-1]) * (prec[i-1] + prec[i])/2
+    auc_pr = auc_pr - (tpr[i] - tpr[i-1]) * (prec[i-1] + prec[i])/2
   end
   
   return auc_roc, auc_pr
